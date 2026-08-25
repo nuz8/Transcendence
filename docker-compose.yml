@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:17
+    container_name: transcend-db
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - transcend-net
+
+volumes:
+  postgres_data:
+  
+networks:
+  transcend-net:
+    name: transcend-net
+    driver: bridge
