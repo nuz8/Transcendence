@@ -13,6 +13,8 @@ An arcade video game platform.
 
 ## Instructions
 
+> In backend directory
+
 ### Project setup
 
 ```bash
@@ -23,6 +25,7 @@ $ npm install
 
 ```bash
 # development
+$ npm run dev:cert
 $ npm run start
 
 # watch mode
