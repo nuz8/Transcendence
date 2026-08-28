@@ -1,0 +1,20 @@
+export interface User {
+  id: string;
+  email: string;
+  passwordHash: string;
+}
+
+export interface PublicUser {
+  id: string;
+  email: string;
+  passwordHash?: never;
+}
+
+
+export type AuthResult = 
+| { success: true; user: PublicUser}
+| { success: false; reason: 'INVALID_CREDENTIALS' };
+
+export function toPublicUser(user: User): PublicUser {
+  return { id: user.id, email: user.email };
+}
