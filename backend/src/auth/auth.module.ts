@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtService } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import type { StringValue } from "ms";
 import { InMemoryUserRepository } from './test-utils/inMemoryUserRepository';
 import { BcryptPasswordHasher } from './bcryptPasswordHasher';
+import { AuthGuard } from './guards/auth.guard';
 
 export const USER_REPOSITORY = 'USER_REPOSITORY';
 
@@ -24,12 +25,13 @@ export const USER_REPOSITORY = 'USER_REPOSITORY';
   providers: [
     { provide: USER_REPOSITORY, useValue: new InMemoryUserRepository([]) },
     BcryptPasswordHasher,
+    AuthGuard,
     {
       provide: AuthService,
-      useFactory: (userRepo, hasher) => new AuthService(userRepo, hasher),
-      inject: [USER_REPOSITORY, BcryptPasswordHasher],
+      useFactory: (userRepo, hasher, jwtService) => new AuthService(userRepo, hasher, jwtService),
+      inject: [USER_REPOSITORY, BcryptPasswordHasher, JwtService],
     },
   ],
-  exports: [AuthService],
+  exports: [AuthService, AuthGuard],
 })
 export class AuthModule {}
