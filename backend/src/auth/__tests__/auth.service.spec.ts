@@ -1,4 +1,4 @@
-import { AuthService } from '../authService';
+import { AuthService } from '../auth.service';
 import { InMemoryUserRepository } from '../test-utils/inMemoryUserRepository';
 import { BcryptPasswordHasher } from '../bcryptPasswordHasher';
 
