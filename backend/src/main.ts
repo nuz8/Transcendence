@@ -3,9 +3,14 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { db } from './db/client';
 import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
+  await migrate(db, { migrationsFolder: join(process.cwd(), 'drizzle') });
+
   const httpsOptions = {
     key: readFileSync('./secrets/key.pem'),
     cert: readFileSync('./secrets/cert.pem'),

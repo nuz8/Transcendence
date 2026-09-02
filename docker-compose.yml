@@ -1,16 +1,38 @@
 services:
+  nest-app:
+    build:
+      context: ./backend
+    image: nest-app
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_NAME: ${POSTGRES_NAME}
+    networks:
+      - transcend-net
+
   db:
     image: postgres:17
     container_name: transcend-db
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_NAME}
+    # TODO: Stop exposing this port when connecting from host is no longer needed
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"]
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 10
