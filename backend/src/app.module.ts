@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EnvModule } from './env/env.module';
 import { validateEnv } from './env/env';
+import { RpsModule } from './games/rps/rps.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { validateEnv } from './env/env';
       validate: validateEnv,
     }),
     EnvModule,
+    RpsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

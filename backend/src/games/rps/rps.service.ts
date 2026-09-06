@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import { MOVES, type MatchState, type PlayedRound, type Move, type Outcome, type RoundResult } from './rps.types';
 import { randomInt } from 'node:crypto';
 
@@ -7,10 +8,11 @@ const BEATS: Record<Move, Move> = {
     scissors: 'paper',
 };
 
+@Injectable()
 export class RpsService {
 
     play(moveA: Move, moveB: Move): RoundResult {
-        if (moveA == moveB)
+        if (moveA === moveB)
             return {
                 moveA,
                 moveB,
@@ -25,7 +27,7 @@ export class RpsService {
     }
 
     outcomeFor(player: 'a' | 'b', result: RoundResult): Outcome {
-        if (result.winner == null)
+        if (result.winner === null)
             return 'draw';
         return result.winner === player ? 'win' : 'lose';
     }
@@ -40,7 +42,7 @@ export class RpsService {
     }
 
     createMatch(bestOf = 3): MatchState {
-        if (bestOf < 1 || bestOf % 2 == 0){
+        if (bestOf < 1 || bestOf % 2 === 0){
             throw new Error('bestOf must be an odd number!');
         }
         return {
@@ -56,8 +58,8 @@ export class RpsService {
 
         const next: MatchState = {
             ...state,
-            scoreA: state.scoreA + (round.winner == 'a' ? 1 : 0),
-            scoreB: state.scoreB + (round.winner == 'b' ? 1 : 0),
+            scoreA: state.scoreA + (round.winner === 'a' ? 1 : 0),
+            scoreB: state.scoreB + (round.winner === 'b' ? 1 : 0),
         };
         return { round, state: next };
     }
@@ -74,15 +76,15 @@ export class RpsService {
     }
 
     matchWinner(state: MatchState): 'a' | 'b' | null {
-        if (state.forfeitedBy == 'a') return 'b';
-        if (state.forfeitedBy == 'b') return 'a';
+        if (state.forfeitedBy === 'a') return 'b';
+        if (state.forfeitedBy === 'b') return 'a';
         if (state.scoreA >= state.targetRounds) return 'a';
         else if (state.scoreB >= state.targetRounds) return 'b';
         return null;
     }
 
     matchOutcome(player: 'a' | 'b', state: MatchState): Outcome {
-        if (state.forfeitedBy == player)
+        if (state.forfeitedBy === player)
             return 'forfeit';
         return this.matchWinner(state) === player ? 'win' : 'lose';
     }
