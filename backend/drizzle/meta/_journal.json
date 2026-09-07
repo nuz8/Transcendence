@@ -15,6 +15,13 @@
       "when": 1787746150297,
       "tag": "0001_add_soft_delete",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788619303066,
+      "tag": "0002_add_row_lvl_restrictions",
+      "breakpoints": true
     }
   ]
 }
