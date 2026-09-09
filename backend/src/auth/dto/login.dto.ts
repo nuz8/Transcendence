@@ -1,9 +1,11 @@
 import { IsEmail, IsNotEmpty} from 'class-validator';
-
+import { Transform } from 'class-transformer';
+import { AUTH_VALID_MSGS } from '../auth.constants';
 export class LoginDto {
-  @IsEmail({}, { message: 'Email must be a valid email address' })
-  email: string;
+  @Transform(({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
+  @IsEmail({}, { message: AUTH_VALID_MSGS.EMAIL_VALID })
+  email!: string;
 
-  @IsNotEmpty({ message: 'Password must not be empty' })
-  password: string;
+  @IsNotEmpty({ message: AUTH_VALID_MSGS.PASSWORD_REQUIRED })
+  password!: string;
 }

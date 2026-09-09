@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const envSchema = z.object({
   JWT_SECRET: z.string().min(32),
   TOKEN_EXPIRATION_TIME: z.string().optional(),
-  APP_PORT: z.number().optional(),
+  APP_PORT: z.coerce.number().optional(),
 });
 
 export function validateEnv(env: Record<string, unknown>) {

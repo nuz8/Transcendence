@@ -1,8 +1,9 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { RegisterDto } from './dto/register.dto';
 import { UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from './guards/auth.guard';
 import { DenyList } from './denyList';
@@ -42,6 +43,21 @@ export class AuthController {
     }
 
     return { access_token: result.access_token, refresh_token: result.refresh_token };
+  }
+
+  @Post('register')
+  async register(@Body() registerDto: RegisterDto) {
+    const result = await this.authService.register(
+      registerDto.username,
+      registerDto.email,
+      registerDto.password,
+    );
+
+    if (!result.success) {
+      throw new ConflictException(result.reason);
+    }
+
+    return result.user;
   }
 
   @Post('logout')

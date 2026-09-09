@@ -1,14 +1,16 @@
-import { UserRepository } from './userRepository';
+import { Injectable } from '@nestjs/common';
+import { UserService, UserConflictError } from '../users';
 import { BcryptPasswordHasher } from './bcryptPasswordHasher';
-import { AuthResult, RefreshResult, toPublicUser } from './types';
+import { AuthResult, RefreshResult, RegisterResult } from './types';
 import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'node:crypto';
 import { AllowList } from './allowList';
 
 
+@Injectable()
 export class AuthService {
     constructor(
-        private readonly userRepo: UserRepository,
+        private readonly userService: UserService,
         private readonly hasher: BcryptPasswordHasher,
         private readonly jwtService: JwtService,
         private readonly allowList: AllowList
@@ -16,7 +18,7 @@ export class AuthService {
 
     async authenticate(email: string, password: string): Promise<AuthResult> {
 
-        const user = await this.userRepo.findByEmail(email);
+        const user = await this.userService.findByEmail(email);
 
         if (!user) {
             return { success: false, reason: 'INVALID_CREDENTIALS'};
@@ -34,7 +36,7 @@ export class AuthService {
         const { exp } = this.jwtService.decode(refresh_token) as { exp: number };
         this.allowList.add(refreshJti, exp * 1000);
 
-        return { success: true, user: toPublicUser(user), access_token, refresh_token };
+        return { success: true, user: user.toPublicData(), access_token, refresh_token };
     }
 
     async refresh(refreshToken: string): Promise<RefreshResult> {
@@ -67,4 +69,19 @@ export class AuthService {
         }
     }
 
+    async register(username: string, email: string, password: string): Promise<RegisterResult> {
+        const passwordHash = await this.hasher.hash(password);
+        try {
+            const user = await this.userService.createUser(username, email, passwordHash);
+            return { success: true, user: user.toPublicData() };
+        } catch (error) {
+            if (error instanceof UserConflictError) {
+                return {
+                    success: false,
+                    reason: error.field === 'username' ? 'USERNAME_ALREADY_EXISTS' : 'EMAIL_ALREADY_EXISTS',
+                };
+            }
+            throw error;
+        }
+    }
 }

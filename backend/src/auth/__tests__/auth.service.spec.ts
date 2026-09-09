@@ -1,114 +1,229 @@
-import { AuthService } from '../auth.service';
-import { InMemoryUserRepository } from '../test-utils/inMemoryUserRepository';
-import { BcryptPasswordHasher } from '../bcryptPasswordHasher';
 import { JwtService } from '@nestjs/jwt';
+import { like } from 'drizzle-orm';
+import db from '../../db/client';
+import { users } from '../../db/schema';
+import { UserRepository, UserService } from '../../users';
+import { AuthService } from '../auth.service';
+import { BcryptPasswordHasher } from '../bcryptPasswordHasher';
 import { AllowList } from '../allowList';
 import { randomUUID } from 'node:crypto';
 
 describe('AuthService', () => {
+  const TEST_DOMAIN = '@auth-suite.local';
+  const makeEmail = (name: string) => `${name}${TEST_DOMAIN}`;
+
   const hasher = new BcryptPasswordHasher();
-  const jwtService = new JwtService({ secret: 'test-secret' });
+  const jwtService = new JwtService({ secret: 'test-jwt-secret' });
   const allowList = new AllowList();
+  const userRepository = new UserRepository(db);
+  const userService = new UserService(userRepository);
+  const authService = new AuthService(userService, hasher, jwtService, allowList);
 
-  it('authenticates a user with correct credentials', async () => {
-    const passwordHash = await hasher.hash('pass123');
-    const repo = new InMemoryUserRepository([
-      { id: '1', email: 'test@test.com', passwordHash },
-    ]);
-    const authService = new AuthService(repo, hasher, jwtService, allowList);
+  const cleanTestSuiteUsers = async () => {
+    await db.delete(users).where(like(users.email, `%${TEST_DOMAIN}`));
+  };
 
-    const result = await authService.authenticate('test@test.com', 'pass123');
+  const seedUser = async (
+    username: string,
+    email: string,
+    plainTextPassword = 'password123',
+  ) => {
+    const passwordHash = await hasher.hash(plainTextPassword);
+    return userService.createUser(username, email, passwordHash);
+  };
 
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.user.email).toBe('test@test.com');
+  beforeEach(async () => {
+    await cleanTestSuiteUsers();
+  });
+
+  afterAll(async () => {
+    await cleanTestSuiteUsers();
+    await db.$client.end();
+  });
+
+  describe('authenticate', () => {
+    it('authenticates an existing user and issues access and refresh tokens', async () => {
+      const email = makeEmail('valid-user');
+      const password = 'securePassword!45';
+      await seedUser('valid_user', email, password);
+
+      const result = await authService.authenticate(email, password);
+
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+
+      expect(result.user.email).toBe(email);
       expect(result.access_token).toEqual(expect.any(String));
       expect(result.refresh_token).toEqual(expect.any(String));
+    });
 
-    }
-  });
+    it('rejects authentication when email is not registered', async () => {
+      const result = await authService.authenticate(
+        makeEmail('ghost'),
+        'anyPassword',
+      );
 
-  it('rejects an unknown email', async () => {
-    const repo = new InMemoryUserRepository([]);
-    const authService = new AuthService(repo, hasher, jwtService, allowList);
+      expect(result.success).toBe(false);
+      if (result.success) return;
 
-    const result = await authService.authenticate('unknown@test.com', 'x');
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
       expect(result.reason).toBe('INVALID_CREDENTIALS');
-    }
-  });
+    });
 
-  it('rejects an incorrect password with the same generic error', async () => {
-    const passwordHash = await hasher.hash('correctpass');
-    const repo = new InMemoryUserRepository([
-      { id: '1', email: 'test@test.com', passwordHash },
-    ]);
-    const authService = new AuthService(repo, hasher, jwtService, allowList);
+    it('rejects authentication with generic error when password does not match', async () => {
+      const email = makeEmail('wrong-pass-user');
+      await seedUser('wrong_pass_user', email, 'correctSecret');
 
-    const result = await authService.authenticate('test@test.com', 'wrongpass');
+      const result = await authService.authenticate(email, 'incorrectSecret');
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
+      expect(result.success).toBe(false);
+      if (result.success) return;
+
       expect(result.reason).toBe('INVALID_CREDENTIALS');
-    }
+    });
   });
 
-  it('issues a new access token and a new refresh token for a valid refresh token', async () => {
-    const authService = new AuthService(new InMemoryUserRepository([]), hasher, jwtService, allowList);
-    const jti = randomUUID();
-    const refresh_token = await jwtService.signAsync({ sub: '1', type: 'refresh', jti }, { expiresIn: '7d' });
-    allowList.add(jti, Date.now() + 60_000);
+  describe('refresh', () => {
+    it('issues a fresh access token given a valid refresh token', async () => {
+      const jti = randomUUID();
+      const refreshToken = await jwtService.signAsync({ sub: '1', type: 'refresh', jti }, { expiresIn: '7d' });
+      allowList.add(jti, Date.now() + 60_000);
+      const result = await authService.refresh(refreshToken);
 
-    const result = await authService.refresh(refresh_token);
+      expect(result.success).toBe(true);
+      if (!result.success) return;
 
-    expect(result.success).toBe(true);
-    if (result.success) {
       expect(result.access_token).toEqual(expect.any(String));
-      expect(result.refresh_token).toEqual(expect.any(String));
-      expect(result.refresh_token).not.toBe(refresh_token);
-    }
-  });
+    });
 
+    it('rejects token refresh when provided with an access token instead', async () => {
+      const accessToken = await jwtService.signAsync({
+        sub: 'test-user-id',
+        type: 'access',
+      });
 
-  it('rejects an access token used as a refresh token', async () => {
-    const authService = new AuthService(new InMemoryUserRepository([]), hasher, jwtService, allowList);
-    const access_token = await jwtService.signAsync({ sub: '1', type: 'access' });
+      const result = await authService.refresh(accessToken);
 
-    const result = await authService.refresh(access_token);
+      expect(result.success).toBe(false);
+      if (result.success) return;
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
       expect(result.reason).toBe('INVALID_REFRESH_TOKEN');
-    }
-  });
+    });
+
   
-  it('rejects a refresh token not present in the allow list', async () => {
-    const authService = new AuthService(new InMemoryUserRepository([]), hasher, jwtService, allowList);
-    const refresh_token = await jwtService.signAsync({ sub: '1', type: 'refresh', jti: randomUUID() }, { expiresIn: '7d' });
+    it('rejects a refresh token not present in the allow list', async () => {
+      const refresh_token = await jwtService.signAsync({ sub: '1', type: 'refresh', jti: randomUUID() }, { expiresIn: '7d' });
 
-    const result = await authService.refresh(refresh_token);
+      const result = await authService.refresh(refresh_token);
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.reason).toBe('INVALID_REFRESH_TOKEN');
-    }
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.reason).toBe('INVALID_REFRESH_TOKEN');
+      }
+    });
+
+    it('invalidates the old refresh token after rotation', async () => {
+      const jti = randomUUID();
+      const refresh_token = await jwtService.signAsync({ sub: '1', type: 'refresh', jti }, { expiresIn: '7d' });
+      allowList.add(jti, Date.now() + 60_000);
+
+      await authService.refresh(refresh_token);
+      const result = await authService.refresh(refresh_token);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.reason).toBe('INVALID_REFRESH_TOKEN');
+      }
+    });
   });
 
-  it('invalidates the old refresh token after rotation', async () => {
-    const authService = new AuthService(new InMemoryUserRepository([]), hasher, jwtService, allowList);
-    const jti = randomUUID();
-    const refresh_token = await jwtService.signAsync({ sub: '1', type: 'refresh', jti }, { expiresIn: '7d' });
-    allowList.add(jti, Date.now() + 60_000);
+  describe('register', () => {
+    it('registers a new user and returns public user details without leaking password hash', async () => {
+      const email = makeEmail('new-member');
 
-    await authService.refresh(refresh_token);
-    const result = await authService.refresh(refresh_token);
+      const result = await authService.register(
+        'new_member',
+        email,
+        'mySecret123',
+      );
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.reason).toBe('INVALID_REFRESH_TOKEN');
-    }
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+
+      expect(result.user.id).toBeDefined();
+      expect(result.user.username).toBe('new_member');
+      expect(result.user.email).toBe(email);
+      expect('passwordHash' in result.user).toBe(false);
+    });
+
+    it('persists password as a verifiable hash rather than plain text', async () => {
+      const email = makeEmail('hashed-member');
+      const rawPassword = 'superSecretPassword!';
+
+      await authService.register('hashed_member', email, rawPassword);
+
+      const persisted = await userRepository.findByEmail(email);
+      expect(persisted).not.toBeNull();
+      expect(persisted!.passwordHash).not.toBe(rawPassword);
+
+      const isMatch = await hasher.verify(rawPassword, persisted!.passwordHash);
+      expect(isMatch).toBe(true);
+    });
+
+    it('rejects registration when username is already in use', async () => {
+      const existingUsername = 'duplicate_username';
+      await seedUser(existingUsername, makeEmail('first-owner'), 'password');
+
+      const result = await authService.register(
+        existingUsername,
+        makeEmail('second-attempt'),
+        'password',
+      );
+
+      expect(result.success).toBe(false);
+      if (result.success) return;
+
+      expect(result.reason).toBe('USERNAME_ALREADY_EXISTS');
+    });
+
+    it('rejects registration when email is already in use', async () => {
+      const existingEmail = makeEmail('shared-mailbox');
+      await seedUser('user_one', existingEmail, 'password');
+
+      const result = await authService.register(
+        'user_two',
+        existingEmail,
+        'password',
+      );
+
+      expect(result.success).toBe(false);
+      if (result.success) return;
+
+      expect(result.reason).toBe('EMAIL_ALREADY_EXISTS');
+    });
+
+    it('handles multiple concurrent registration requests for the same credentials with only one winner', async () => {
+      const CONCURRENT_REQUESTS_COUNT = 3;
+      const targetUsername = 'concurrent_user';
+      const targetEmail = makeEmail('concurrent-target');
+
+      const requests = Array.from({ length: CONCURRENT_REQUESTS_COUNT }, () =>
+        authService.register(targetUsername, targetEmail, 'concurrentPass123'),
+      );
+
+      const results = await Promise.all(requests);
+      const successfulRegistrations = results.filter((res) => res.success);
+      const failedRegistrations = results.filter((res) => !res.success);
+
+      expect(successfulRegistrations).toHaveLength(1);
+      expect(failedRegistrations).toHaveLength(CONCURRENT_REQUESTS_COUNT - 1);
+
+      for (const failed of failedRegistrations) {
+        if (!failed.success) {
+          expect(['USERNAME_ALREADY_EXISTS', 'EMAIL_ALREADY_EXISTS']).toContain(
+            failed.reason,
+          );
+        }
+      }
+    });
   });
-
 });

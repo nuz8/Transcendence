@@ -20,4 +20,6 @@ const databaseUrl =
 	`${encodeURIComponent(POSTGRES_PASSWORD)}@${POSTGRES_HOST}:` +
 	`${POSTGRES_PORT}/${POSTGRES_NAME}`;
 
-export const db = drizzle(databaseUrl!);
+export const db = drizzle(databaseUrl);
+export type DB = typeof db;
+export default db;

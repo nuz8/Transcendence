@@ -3,21 +3,23 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
+import { UserModule } from './users/user.module';
 import { EnvModule } from './env/env.module';
 import { validateEnv } from './env/env';
+import { DbModule } from './db/db.module';
 import { GamesModule } from './games/games.module';
 import { RpsModule } from './games/rps/rps.module';
 
 @Module({
   imports: [
     AuthModule,
-    UsersModule,
+    UserModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnv,
     }),
     EnvModule,
+    DbModule,
     GamesModule,
     RpsModule,
   ],

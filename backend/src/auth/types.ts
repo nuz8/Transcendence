@@ -1,24 +1,13 @@
-export interface User {
-  id: string;
-  email: string;
-  passwordHash: string;
-}
-
-export interface PublicUser {
-  id: string;
-  email: string;
-  passwordHash?: never;
-}
-
+import { PublicUserData } from '../users';
 
 export type AuthResult = 
-| { success: true; user: PublicUser;  access_token: string; refresh_token: string }
+| { success: true; user: PublicUserData;  access_token: string; refresh_token: string }
 | { success: false; reason: 'INVALID_CREDENTIALS' };
-
-export function toPublicUser(user: User): PublicUser {
-  return { id: user.id, email: user.email };
-}
 
 export type RefreshResult =
 | { success: true; access_token: string; refresh_token: string }
 | { success: false; reason: 'INVALID_REFRESH_TOKEN' };
+
+export type RegisterResult = 
+| { success: true; user: PublicUserData }
+| { success: false; reason: 'USERNAME_ALREADY_EXISTS' | 'EMAIL_ALREADY_EXISTS' };

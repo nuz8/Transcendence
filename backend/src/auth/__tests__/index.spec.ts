@@ -6,6 +6,6 @@ describe('auth module public API', () => {
   });
 
   it('does not export internal test utilities', () => {
-    expect((AuthModule as any).InMemoryUserRepository).toBeUndefined();
+    expect((AuthModule as any).UserRepository).toBeUndefined();
   });
 });

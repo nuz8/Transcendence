@@ -3,6 +3,8 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { WsAdapter } from '@nestjs/platform-ws';
+import db from '../src/db/client'
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -13,7 +15,19 @@ describe('AppController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.useWebSocketAdapter(new WsAdapter(app));
     await app.init();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  afterAll(async () => {
+    if (app) {
+      await app.close();
+    }
+    await db.$client.end();
   });
 
   it('/ (GET)', () => {
@@ -21,9 +35,5 @@ describe('AppController (e2e)', () => {
       .get('/')
       .expect(200)
       .expect('Hello World!');
-  });
-
-  afterEach(async () => {
-    await app.close();
   });
 });

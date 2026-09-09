@@ -5,6 +5,8 @@ export type UserAttributes = {
     passwordHash: string;
 };
 
+export type PublicUserData = Omit<UserAttributes, 'passwordHash'>;
+
 export class UserEntity {
     id: string;
     username: string;
@@ -18,7 +20,7 @@ export class UserEntity {
         this.passwordHash = attrs.passwordHash;
     }
  
-    toPublicData() {
+    toPublicData(): PublicUserData {
         return {
             id: this.id, 
             username: this.username, 

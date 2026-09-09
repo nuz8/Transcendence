@@ -4,17 +4,15 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import type { StringValue } from "ms";
-import { InMemoryUserRepository } from './test-utils/inMemoryUserRepository';
 import { BcryptPasswordHasher } from './bcryptPasswordHasher';
 import { AuthGuard } from './guards/auth.guard';
+import { UserModule, UserRepository } from '../users';
 import { DenyList } from './denyList';
 import { AllowList } from './allowList';
 
-
-export const USER_REPOSITORY = 'USER_REPOSITORY';
-
 @Module({
   imports: [
+    UserModule,
     JwtModule.registerAsync({
       global: true,
       inject: [ConfigService],
@@ -26,16 +24,12 @@ export const USER_REPOSITORY = 'USER_REPOSITORY';
   ],
   controllers: [AuthController],
   providers: [
-    { provide: USER_REPOSITORY, useValue: new InMemoryUserRepository([]) },
+    UserRepository,
     BcryptPasswordHasher,
     DenyList,
     AllowList,
     AuthGuard,
-    {
-      provide: AuthService,
-      useFactory: (userRepo, hasher, jwtService, allowList) => new AuthService(userRepo, hasher, jwtService, allowList),
-      inject: [USER_REPOSITORY, BcryptPasswordHasher, JwtService, AllowList],
-    },
+    AuthService,
   ],
   exports: [AuthService, AuthGuard, DenyList, AllowList],
 })
