@@ -7,7 +7,7 @@ import { UserModule } from './users/user.module';
 import { EnvModule } from './env/env.module';
 import { validateEnv } from './env/env';
 import { DbModule } from './db/db.module';
-import { GamesModule } from './games/games.module';
+import { GameModule } from './games/game.module';
 import { RpsModule } from './games/rps/rps.module';
 
 @Module({
@@ -20,7 +20,7 @@ import { RpsModule } from './games/rps/rps.module';
     }),
     EnvModule,
     DbModule,
-    GamesModule,
+    GameModule,
     RpsModule,
   ],
   controllers: [AppController],

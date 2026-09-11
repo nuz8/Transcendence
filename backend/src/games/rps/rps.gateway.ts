@@ -1,50 +1,25 @@
-import { ConnectedSocket, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, MessageBody } from '@nestjs/websockets';
+import { ConnectedSocket, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, MessageBody, OnGatewayConnection } from '@nestjs/websockets';
 import { WebSocket } from 'ws';
 import { RpsService } from './rps.service';
-import type { MatchState } from './rps.types';
-import { randomUUID } from 'node:crypto';
+import { JwtService } from '@nestjs/jwt';
+import { DenyList } from '../../auth/denyList';
+import { ScoreRepository } from '../../scores';
+import { RPS_GAME_ID } from './rps.constants';
+import { GameGateway } from '../game.gateway';
 
 const BEST_OF = 3;
-
-type Session = { state: MatchState; client: WebSocket | null};
-
 @WebSocketGateway({ path: '/games/rps' })
-export class RpsGateway implements OnGatewayDisconnect {
-    // TODO: issue: in-memory only sessions are lost if the server restarts
-    // needs to  be recoverable
-    private readonly sessions = new Map<string, Session>();
-    private readonly sessionBySocket = new Map<WebSocket, string>();
+export class RpsGateway extends GameGateway implements OnGatewayConnection, OnGatewayDisconnect  {
+    protected readonly gameId = RPS_GAME_ID;
+    protected readonly bestOf = BEST_OF;
 
-    constructor(private readonly rpsService: RpsService) {}
-
-    handleDisconnect(client: WebSocket): void {
-        const sessionId = this.sessionBySocket.get(client);
-        if (!sessionId)
-            return ;
-
-        this.sessionBySocket.delete(client);
-        this.sessions.delete(sessionId);
-    }
-
-    @SubscribeMessage('create')
-    create(@ConnectedSocket() client: WebSocket): void {
-        const sessionId = randomUUID();
-        this.sessions.set(sessionId, { state: this.rpsService.createMatch(BEST_OF), client: null });
-        this.sessionBySocket.set(client, sessionId);
-        this.send(client, 'created', { sessionId });
-    }
-
-    @SubscribeMessage('join')
-    join(@ConnectedSocket() client: WebSocket, @MessageBody() sessionId: unknown): void {
-        const session = typeof sessionId === 'string' ? this.sessions.get(sessionId) : undefined;
-        if (!session)
-            return this.send(client, 'error', { message: 'unknown session' });
-        if (session.client)
-            return this.send(client, 'error', { message: 'session already joined' });
-
-        session.client = client;
-        this.sessionBySocket.set(client, sessionId as string);
-        this.send(client, 'joined', { targetRounds: session.state.targetRounds });
+    constructor(
+        private readonly rpsService: RpsService,
+        jwtService: JwtService,
+        denyList: DenyList,
+        scoreRepository: ScoreRepository,
+    ) {
+        super(rpsService, jwtService, denyList, scoreRepository);
     }
 
     @SubscribeMessage('move')
@@ -59,6 +34,7 @@ export class RpsGateway implements OnGatewayDisconnect {
 
         const played = this.rpsService.playRound(session.state, move, this.rpsService.randomMove());
         session.state = played.state;
+        session.roundsPlayed += 1;
 
         this.send(client, 'round', { 
             ownMove: played.round.moveA,
@@ -70,38 +46,6 @@ export class RpsGateway implements OnGatewayDisconnect {
 
         if (this.rpsService.gameOver(played.state))
             this.finish(client);
-    }
-
-    @SubscribeMessage('quit')
-    quit(@ConnectedSocket() client: WebSocket): void {
-        const session = this.currentSession(client);
-        if (!session)
-            return this.send(client, 'quit', { message: 'no match' });
-        session.state = this.rpsService.forfeit(session.state, 'a');
-        this.finish(client);
-    }
-
-    private finish(client: WebSocket): void {
-        const sessionId = this.sessionBySocket.get(client)!;
-        const { state } = this.sessions.get(sessionId)!;
-
-        this.sessions.delete(sessionId);
-        this.sessionBySocket.delete(client);
-        this.send(client, 'over', {
-            outcome: this.rpsService.matchOutcome('a', state),
-            ownScore: state.scoreA,
-            opScore: state.scoreB,
-        });
-    }
-
-    private send(client: any, event: string, data: unknown): void {
-        client.send(JSON.stringify({ event, data }));
-    }
-
-    private currentSession(client: WebSocket): Session | undefined {
-        const sessionId = this.sessionBySocket.get(client);
-        const session = sessionId ? this.sessions.get(sessionId) : undefined;
-        return session?.client === client ? session : undefined;
     }
 
 }

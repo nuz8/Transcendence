@@ -1,49 +1,40 @@
 # Rock / Paper / Scissors
-Game logic for RPS. Rules live in 'rps.service.ts'; the CLI and the websocket are just two way in
+Game logic for RPS. Rules live in `rps.service.ts`; `move` message in `rps.gateway.ts`; connection itself in `game/games.gateway.ts`.
 - Best-Of-N Match System. Rounds keep going until hitting the target value. (N always has to be an odd number)
 - Users can forfeit(counts as a loss) a match by using the command: `quit`/`q`.
 - Moves are `rock`, `paper`, `scissor`, or just their first letter.
+- Locked to best-of-3, and always against a random move. no PvP yet.
+#### Test:
+The game rules needed to be tested so there is `rps.service.spec.ts`(agent generated) that helps doing that without waiting on chance.
 
-| Ways to play | CLI | Websocket |
-|---|---|---|
-| Where the match lives | in the script, for one run | on the server, tied to your connection |
-| Choose N | yes, `-- 5` | no, always best-of-3 |
-| Needs the app running | no | yes |
-| Needs the database | no | yes |
-
-## Through CLI
-```
- cd backend (if in root)
-```
-Then by choice, run it choosing the N
-```
- npm run play:rps           # best of 3 - default
- npm run play:rps -- 1      # best of 1
- npm run play:rps -- 3      # best of 3
- npm run play:rps -- 15     # best of 15
- ```
-
-Type `r`, `p`, `s` or their full word. Type `q` or `quit` to forfeit.
-```
-rock, paper, scissors - shoot:
-> r
-rock vs paper - you lose the round
-score: 0-1
-```
-After the round target is hit, the game end and the winner is displayed.
-
-## Through Websocket
+## Playing
 ### Start the app, then:
+Get an access token:
 ```
-npx wscat -n -c wss://localhost:3000/games/rps
+curl -sk -X POST https://localhost:3000/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"alice","email":"alice@test.com","password":"securepassword123"}'
+
+TOKEN=$(curl -sk -X POST https://localhost:3000/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"alice@test.com","password":"securepassword123"}' | jq -r .access_token)
 ```
+Then:
+```
+npx wscat -n -c wss://localhost:3000/games/rps \
+  -H "Authorization: Bearer $TOKEN"
+```
+Check results after playing:
+```
+docker compose exec db psql -U database_user -d database_name \
+  -c "select session_id, value, outcome from scores;"
+```
+
 #### Notes:
 - `create` first, then `join` with the id it gives you.
 - Erros come back as normal messages, they don't close the connection.
-- Sessions live in memory only. Close the connection and the session is gone, no reconnecting, nothing is saved.
 - The last move returns two messages: the round result, the match result.
 - Messages are JSON both ways, shaped: ` {"event": ..., "data": ...} `.
-
 
 ### You send:
 | event | data |
@@ -59,14 +50,32 @@ npx wscat -n -c wss://localhost:3000/games/rps
 | event | data |
 |----------|------|
 | `created` | `{"sessionId": "..."}` |
-| `joined` | `{"targetRounds": 2}` |
+| `joined` | `{"targetRounds", "ownScore", "opScore", "roundsPlayed"}` |
 | `round` | `{"ownMove", "opMove", "outcome", "ownScore", "opScore"}` |
 | `over` | `{"outcome", "ownScore", "opScore"}` |
 | `error` | `{"message": "..."}` |
 
-## References
+### On disconnect
+- Disconnecting mid-match doesn't end it straight away. 
+- You get a 30 seconds to reconnect.
+- Connect again and `join`(same `sessionId` as before)
+```
+Reconnect in time → you keep playing, nothing is written down
+Don't → a forfeit is saved, same as quit
+You hadn't played a round yet → nothing is recorded either way
+You sent quit → that's final, no window and no rejoining
+```
 
+### Choice
+- Sessions themselves are in memory  only. A server restart drops any match in progress and its `sessionId` stops resolving, so `join` comes back with `no such session`. Matches this short aren't worth a table that nothing else would read. The history will read `scores`.
+- So to sum up the choice I made: dropped connections are survivable(if rejoining is done in the time allocated), restarts aren't.
+
+### Adding another game
+- `games/game.gateway.ts` holds the login check, the sessions, `create`/`join`/`quit`, the reconnect window and saving the result.
+- A new game extends it, supplies a `gameId` and `bestOf` and writes its own `move` handler. 
+
+## References
 - Issue: Create the rock/paper/scissors module #35
 - Issue: Allow to play the rock/paper/scissors game from the web app (without frontend) #36 
-- Node: https://nodejs.org/api/readline.html#promises-api
+- Issue: Persist game sessions #61
 - ws: https://github.com/websockets/ws

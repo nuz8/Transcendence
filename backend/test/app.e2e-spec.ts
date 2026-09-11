@@ -4,7 +4,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { WsAdapter } from '@nestjs/platform-ws';
-import db from '../src/db/client'
+import db from '../src/db/client';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;

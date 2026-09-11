@@ -39,8 +39,8 @@ describe('Auth Registration (e2e)', () => {
   afterAll(async () => {
     if (app) {
 		  await app.close();
-    }
-    await db.$client.end();
+	  }
+	  await db.$client.end();
   });
 
   it('POST /auth/register -> returns 201 and creates user in Postgres', async () => {
