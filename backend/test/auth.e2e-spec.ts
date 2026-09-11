@@ -1,21 +1,27 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import db from '../src/db/client';
 import { users } from '../src/db/schema';
 import { eq } from 'drizzle-orm';
 import { WsAdapter } from '@nestjs/platform-ws';
+import { join } from 'node:path';
+import { NestExpressApplication } from '@nestjs/platform-express';
+
 
 describe('Auth Registration (e2e)', () => {
-  let app: INestApplication;
+  let app: NestExpressApplication;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
+    app = moduleFixture.createNestApplication<NestExpressApplication>();
+    app.useStaticAssets(join(process.cwd(), 'public'), {
+      prefix: '/static/',
+    });
     app.useWebSocketAdapter(new WsAdapter(app));
     // Enable the exact same validation pipe as main.ts
     app.useGlobalPipes(
@@ -57,6 +63,7 @@ describe('Auth Registration (e2e)', () => {
     expect(res.body.id).toBeDefined();
     expect(res.body.username).toBe('e2e_user');
     expect(res.body.email).toBe('e2e_test@example.com');
+    expect(res.body.avatar).toBe('/static/avatars/default.svg');
     expect(res.body.passwordHash).toBeUndefined();
 
     // Verify that created user actually exists in real PostgreSQL!
@@ -66,6 +73,7 @@ describe('Auth Registration (e2e)', () => {
       .where(eq(users.email, 'e2e_test@example.com'));
     expect(dbRows.length).toBe(1);
     expect(dbRows[0].username).toBe('e2e_user');
+    expect(dbRows[0].avatar).toBe('/static/avatars/default.svg');
 
 	// Verify password is saved as a bcrypt hash, never plaintext
     expect(dbRows[0].passwordHash).not.toBe('password123');
@@ -142,33 +150,39 @@ describe('Auth Registration (e2e)', () => {
     );
   });
 
-it('POST /auth/register -> handles concurrent requests without 500 error', async () => {
-  const payload = {
-    username: 'race_user',
-    email: 'race@example.com',
-    password: 'password123',
-  };
+  it('POST /auth/register -> handles concurrent requests without 500 error', async () => {
+    const payload = {
+      username: 'race_user',
+      email: 'race@example.com',
+      password: 'password123',
+    };
 
-  // Fire 5 requests at the exact same time
-  const responses = await Promise.all(
-    Array.from({ length: 5 }).map(() =>
-      request(app.getHttpServer()).post('/auth/register').send(payload),
-    ),
-  );
+    // Fire 5 requests at the exact same time
+    const responses = await Promise.all(
+      Array.from({ length: 5 }).map(() =>
+        request(app.getHttpServer()).post('/auth/register').send(payload),
+      ),
+    );
 
-  const statuses = responses.map((r) => r.status);
-  
-  // Exactly 1 must be 201, and the other 4 MUST be 409 (NONE should be 500!)
-  expect(statuses.filter((s) => s === 201).length).toBe(1);
-  expect(statuses.filter((s) => s === 409).length).toBe(4);
-  expect(statuses.filter((s) => s === 500).length).toBe(0);
+    const statuses = responses.map((r) => r.status);
+    
+    // Exactly 1 must be 201, and the other 4 MUST be 409 (NONE should be 500!)
+    expect(statuses.filter((s) => s === 201).length).toBe(1);
+    expect(statuses.filter((s) => s === 409).length).toBe(4);
+    expect(statuses.filter((s) => s === 500).length).toBe(0);
 
-  // To log the status codes and responses:
-  // const statuses = responses.map((r) => r.status);
-  // console.log('STATUSES RECEIVED:', statuses);
-  // console.log('RESPONSES:', responses.map((r) => r.body));
+    // To log the status codes and responses:
+    // const statuses = responses.map((r) => r.status);
+    // console.log('STATUSES RECEIVED:', statuses);
+    // console.log('RESPONSES:', responses.map((r) => r.body));
 
-  await db.delete(users).where(eq(users.email, 'race@example.com'));
-});
+    await db.delete(users).where(eq(users.email, 'race@example.com'));
+  });
 
+  it('GET /static/avatars/default.svg -> serves the default avatar', () => {
+    return request(app.getHttpServer())
+      .get('/static/avatars/default.svg')
+      .expect(200)
+      .expect('Content-Type', /image\/svg\+xml/);
+  });
 });

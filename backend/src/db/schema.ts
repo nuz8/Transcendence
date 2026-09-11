@@ -25,6 +25,7 @@ export const users = pgTable(
 		username: text("username").notNull(),
 		email: text("email").notNull(),
 		passwordHash: text("password_hash").notNull(),
+		avatar: text("avatar").notNull().default('/static/avatars/default.svg'),
 		deletedAt: timestamp("deleted_at", {withTimezone: true}),
 	},
 	(table) => [
