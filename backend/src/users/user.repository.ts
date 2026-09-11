@@ -64,6 +64,29 @@ export class UserRepository {
 		);
 	}
 
+	async findById(id: string): Promise<UserEntity | null> {
+		const rows = await this.db
+			.select()
+			.from(users)
+			.where(and(eq(users.id, id), isNull(users.deletedAt)))
+			.limit(1);
+
+		const user = rows[0];
+
+		return (
+			user
+			? new UserEntity({
+				id: user.id,
+				username: user.username,
+				email: user.email,
+				avatar: user.avatar,
+				passwordHash: user.passwordHash,
+			})
+			: null
+		);
+	}
+
+
 	async createUser(
 		username: string,
 		email: string,

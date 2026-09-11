@@ -6,7 +6,7 @@ import { AuthController } from './auth.controller';
 import type { StringValue } from "ms";
 import { BcryptPasswordHasher } from './bcryptPasswordHasher';
 import { AuthGuard } from './guards/auth.guard';
-import { UserModule, UserRepository } from '../users';
+import { UserModule } from '../users';
 import { DenyList } from './denyList';
 import { AllowList } from './allowList';
 
@@ -24,7 +24,6 @@ import { AllowList } from './allowList';
   ],
   controllers: [AuthController],
   providers: [
-    UserRepository,
     BcryptPasswordHasher,
     DenyList,
     AllowList,

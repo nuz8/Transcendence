@@ -109,7 +109,6 @@ describe('AuthService', () => {
       expect(result.reason).toBe('INVALID_REFRESH_TOKEN');
     });
 
-  
     it('rejects a refresh token not present in the allow list', async () => {
       const refresh_token = await jwtService.signAsync({ sub: '1', type: 'refresh', jti: randomUUID() }, { expiresIn: '7d' });
 
@@ -134,6 +133,7 @@ describe('AuthService', () => {
         expect(result.reason).toBe('INVALID_REFRESH_TOKEN');
       }
     });
+
   });
 
   describe('register', () => {

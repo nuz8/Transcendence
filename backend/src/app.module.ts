@@ -9,6 +9,7 @@ import { validateEnv } from './env/env';
 import { DbModule } from './db/db.module';
 import { GameModule } from './games/game.module';
 import { RpsModule } from './games/rps/rps.module';
+import { UserController } from './users/user.controller';
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { RpsModule } from './games/rps/rps.module';
     GameModule,
     RpsModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, UserController],
   providers: [AppService],
 })
 export class AppModule {}

@@ -22,6 +22,11 @@ export class UserService {
     return user;
   }
 
+  async findById(id: string): Promise<UserEntity | null> {
+		return this.userRepo.findById(id);
+	}
+
+
   async createUser(
     username: string,
     email: string,
