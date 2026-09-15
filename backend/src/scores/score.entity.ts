@@ -1,9 +1,11 @@
+import { type MatchOutcome } from "./score.constants";
+
 export type ScoreAttributes = {
     sessionId: string;
     userId: string;
     gameId: string;
     value: number;
-    outcome: string;
+    outcome: MatchOutcome;
     achievedAt: Date;
 };
 
@@ -12,7 +14,7 @@ export class ScoreEntity {
     userId: string;
     gameId: string;
     value: number;
-    outcome: string;
+    outcome: MatchOutcome;
     achievedAt: Date;
 
     constructor(attrs: ScoreAttributes) {

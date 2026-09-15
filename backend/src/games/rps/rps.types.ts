@@ -1,22 +1,17 @@
+import type { MatchState, Player } from '../match/match.types';
+
 export const MOVES = ['rock', 'paper', 'scissors'] as const;
 export type Move = (typeof MOVES)[number];
-
-export type Outcome = 'win' | 'lose' | 'draw' | 'forfeit';
 
 export type RoundResult = {
     moveA: Move;
     moveB: Move;
-    winner: 'a' | 'b' | null;
+    winner: Player | null;
 };
-
-export type MatchState = {
-    targetRounds: number;
-    scoreA: number;
-    scoreB: number;
-    forfeitedBy: 'a' | 'b' | null;
-}
 
 export type PlayedRound = {
     round: RoundResult;
     state: MatchState;
 }
+
+export type { MatchState, Outcome, Player } from '../match/match.types';

@@ -10,6 +10,7 @@ import { DbModule } from './db/db.module';
 import { GameModule } from './games/game.module';
 import { RpsModule } from './games/rps/rps.module';
 import { UserController } from './users/user.controller';
+import { ScoreModule } from './scores';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { UserController } from './users/user.controller';
     DbModule,
     GameModule,
     RpsModule,
+    ScoreModule,
   ],
   controllers: [AppController, UserController],
   providers: [AppService],

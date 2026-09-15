@@ -6,6 +6,7 @@ import { DenyList } from '../../auth/denyList';
 import { ScoreRepository } from '../../scores';
 import { RPS_GAME_ID } from './rps.constants';
 import { GameGateway } from '../game.gateway';
+import { MatchService } from '../match/match.service';
 
 const BEST_OF = 3;
 @WebSocketGateway({ path: '/games/rps' })
@@ -15,11 +16,12 @@ export class RpsGateway extends GameGateway implements OnGatewayConnection, OnGa
 
     constructor(
         private readonly rpsService: RpsService,
+        matchService: MatchService,
         jwtService: JwtService,
         denyList: DenyList,
         scoreRepository: ScoreRepository,
     ) {
-        super(rpsService, jwtService, denyList, scoreRepository);
+        super(matchService, jwtService, denyList, scoreRepository);
     }
 
     @SubscribeMessage('move')
@@ -44,7 +46,7 @@ export class RpsGateway extends GameGateway implements OnGatewayConnection, OnGa
             opScore: played.state.scoreB, 
         });
 
-        if (this.rpsService.gameOver(played.state))
+        if (this.matchService.gameOver(played.state))
             this.finish(client);
     }
 

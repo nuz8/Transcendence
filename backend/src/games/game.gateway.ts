@@ -5,8 +5,8 @@ import { IncomingMessage } from 'node:http';
 import { WebSocket } from 'ws';
 import { DenyList } from '../auth/denyList';
 import { ScoreEntity, ScoreRepository } from '../scores';
-import { RpsService } from './rps/rps.service';
-import type { MatchState } from './rps/rps.types';
+import { MatchService } from './match/match.service';
+import type { MatchState } from './match/match.types';
 import { Logger, OnModuleDestroy } from '@nestjs/common';
 
 const RECONNECT_TIME_MS = 30_000;
@@ -20,7 +20,7 @@ export abstract class GameGateway implements OnModuleDestroy {
     private readonly sessionBySocket = new Map<WebSocket, string>();
     
     constructor(
-        private readonly matchService: RpsService,
+        protected readonly matchService: MatchService,
         private readonly jwtService: JwtService,
         private readonly denyList: DenyList,
         private readonly scoreRepository: ScoreRepository,
@@ -62,7 +62,7 @@ export abstract class GameGateway implements OnModuleDestroy {
             return this.send(client, 'error', { message: 'not authenticated' });
         if (this.sessionBySocket.has(client))
             return this.send(client, 'error', { message: 'already in a session' });
-        
+
         const sessionId = randomUUID();
         this.sessions.set(sessionId, {
             state: this.matchService.createMatch(this.bestOf),
