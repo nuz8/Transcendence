@@ -1,4 +1,4 @@
-export { USER_CONSTRAINTS } from './user.constants';
+export { USER_CONSTRAINTS, AVATAR_CONSTANTS } from './user.constants';
 export { type PublicUserData, UserEntity } from './user.entity';
 export { UserModule } from './user.module';
 export { UserRepository, UserConflictError } from './user.repository';

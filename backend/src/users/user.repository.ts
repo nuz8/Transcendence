@@ -121,4 +121,23 @@ export class UserRepository {
 			throw error;
 		}
 	}
+
+	async updateAvatar(id: string, avatarUrl: string): Promise<UserEntity | null> {
+		const rows = await this.db
+			.update(users)
+			.set({ avatar: avatarUrl })
+			.where(and(eq(users.id, id), isNull(users.deletedAt)))
+			.returning();
+		
+		const user = rows[0];
+		return user
+			? new UserEntity({
+					id: user.id,
+					username: user.username,
+					email: user.email,
+					avatar: user.avatar,
+					passwordHash: user.passwordHash,
+				})
+			: null;
+	}
 }

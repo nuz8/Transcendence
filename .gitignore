@@ -4,3 +4,5 @@ dist
 /backend/secrets/*
 !/backend/secrets/.gitkeep
 .DS_Store
+/backend/public/avatars/uploads/*
+!/backend/public/avatars/uploads/.gitkeep

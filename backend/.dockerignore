@@ -3,3 +3,5 @@ dist
 *.log
 *.md
 .git
+public/avatars/uploads/*
+!public/avatars/uploads/.gitkeep
