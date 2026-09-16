@@ -29,6 +29,13 @@
       "when": 1788988358722,
       "tag": "0003_add_avatars_col_default",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789492107400,
+      "tag": "0004_add_friendships_table",
+      "breakpoints": true
     }
   ]
 }

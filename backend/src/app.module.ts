@@ -9,6 +9,7 @@ import { validateEnv } from './env/env';
 import { DbModule } from './db/db.module';
 import { GameModule } from './games/game.module';
 import { RpsModule } from './games/rps/rps.module';
+import { FriendModule } from './friends/friend.module';
 import { UserController } from './users/user.controller';
 import { ScoreModule } from './scores';
 
@@ -24,6 +25,7 @@ import { ScoreModule } from './scores';
     DbModule,
     GameModule,
     RpsModule,
+    FriendModule,
     ScoreModule,
   ],
   controllers: [AppController, UserController],

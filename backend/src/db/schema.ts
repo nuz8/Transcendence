@@ -6,6 +6,7 @@ import {
 	integer,
 	timestamp,
 	uniqueIndex,
+	index,
 	check,
 } from "drizzle-orm/pg-core";
 
@@ -113,5 +114,44 @@ export const scoresRelations = relations(scores, ({ one }) => ({
 	game: one(games, {
 		fields: [scores.gameId],
 		references: [games.id],
+	}),
+}));
+
+export const friendStatusEnum = pgEnum("friend_status", ["pending", "accepted", "declined"]);
+
+export const friendships = pgTable(
+	"friendships",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		requesterId: uuid("requester_id").notNull().references(() => users.id),
+		addresseeId: uuid("addressee_id").notNull().references(() => users.id),
+		status: friendStatusEnum("status").notNull().default("pending"),
+		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+		respondedAt: timestamp("responded_at", { withTimezone: true }),
+	},
+	(table) => [
+		uniqueIndex("friendships_pair_unique").on(
+			sql`LEAST(${table.requesterId}, ${table.addresseeId})`,
+			sql`GREATEST(${table.requesterId}, ${table.addresseeId})`,
+		),
+		index("friendships_requester_status_idx").on(table.requesterId, table.status),
+		index("friendships_addressee_status_idx").on(table.addresseeId, table.status),
+		check(
+			"friendships_no_self_friend",
+			sql`${table.requesterId} <> ${table.addresseeId}`,
+		),
+	],
+);
+
+export const friendshipsRelations = relations(friendships, ({ one }) => ({
+	requester: one(users, {
+		fields: [friendships.requesterId],
+		references: [users.id],
+		relationName: "requester",
+	}),
+	addressee: one(users, {
+		fields: [friendships.addresseeId],
+		references: [users.id],
+		relationName: "addressee",
 	}),
 }));
