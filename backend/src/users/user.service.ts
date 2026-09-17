@@ -1,10 +1,11 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { UserRepository } from './user.repository';
+import { BadRequestException, Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
+import { UserRepository, UserConflictError } from './user.repository';
 import { UserEntity } from './user.entity';
 import { AVATAR_CONSTANTS } from './user.constants';
 import { basename, join } from 'node:path';
 import { promises as fs } from 'node:fs';
 import { isNodeError, isValidImageFile } from './avatar.helpers';
+
 @Injectable()
 export class UserService {
   private readonly logger = new Logger(UserService.name);
@@ -30,6 +31,28 @@ export class UserService {
     return this.userRepo.createUser(username, email, passwordHash);
   }
 
+  async updateProfile(userId: string, username?: string): Promise<UserEntity> {
+    if (username === undefined){
+      const user = await this.userRepo.findById(userId);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+      return user;
+    }
+
+    try {
+      const user = await this.userRepo.updateUsername(userId, username);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+      return user;
+    } catch (error) {
+      if (error instanceof UserConflictError && error.field === 'username') {
+        throw new ConflictException('USERNAME_ALREADY_EXISTS');
+      }
+      throw error;
+    }
+  }
   /** Helper fn to build safe file path, and delete it from disk without throwing.
    * Safely deletes a file from the uploads directory by filename.
    * Uses path.basename to prevent path traversal attacks.

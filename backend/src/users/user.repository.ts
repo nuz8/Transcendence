@@ -86,6 +86,19 @@ export class UserRepository {
 		);
 	}
 
+	private toConflict(error: any): unknown {
+		const { code, constraint } = getPgErrorInfo(error);
+		if (code === PG_ERROR_CODES.UNIQUE_VIOLATION) {
+			if (constraint === USER_CONSTRAINTS.USERNAME_UNIQUE) {
+				return new UserConflictError('username');
+			}
+			if (constraint === USER_CONSTRAINTS.EMAIL_UNIQUE) {
+				return new UserConflictError('email');
+			}
+		}
+
+		return error;
+	}
 
 	async createUser(
 		username: string,
@@ -109,16 +122,7 @@ export class UserRepository {
 				passwordHash: user.passwordHash,
 			});
 		} catch (error: any) {
-			const { code, constraint } = getPgErrorInfo(error);
-			if (code === PG_ERROR_CODES.UNIQUE_VIOLATION) {
-				if (constraint === USER_CONSTRAINTS.USERNAME_UNIQUE) {
-					throw new UserConflictError('username');
-				}
-				if (constraint === USER_CONSTRAINTS.EMAIL_UNIQUE) {
-					throw new UserConflictError('email');
-				}
-			}
-			throw error;
+			throw this.toConflict(error);
 		}
 	}
 
@@ -139,5 +143,27 @@ export class UserRepository {
 					passwordHash: user.passwordHash,
 				})
 			: null;
+	}
+
+	async updateUsername(id: string, username: string): Promise<UserEntity | null> {
+		try {
+			const rows = await this.db
+				.update(users)
+				.set({ username })
+				.where(and(eq(users.id, id), isNull(users.deletedAt)))
+				.returning();
+			const user = rows[0];
+			return user
+				? new UserEntity({
+						id: user.id,
+						username: user.username,
+						email: user.email,
+						avatar: user.avatar,
+						passwordHash: user.passwordHash,
+					})
+				: null;
+		} catch (error: any) {
+			throw this.toConflict(error);
+		}
 	}
 }

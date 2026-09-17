@@ -1,13 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UserRepository, UserService, UserEntity, AVATAR_CONSTANTS } from './';
-import { DB_PROVIDER } from '../db/db.provider';
+import { UserRepository, UserService, UserEntity, AVATAR_CONSTANTS } from '../';
+import { DB_PROVIDER } from '../../db/db.provider';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
-import * as avatarHelpers from './avatar.helpers';
+import * as avatarHelpers from '../avatar.helpers';
 
-jest.mock('./avatar.helpers', () => {
-  const actual = jest.requireActual('./avatar.helpers');
+jest.mock('../avatar.helpers', () => {
+  const actual = jest.requireActual('../avatar.helpers');
   return {
     ...actual,
     isValidImageFile: jest.fn(),

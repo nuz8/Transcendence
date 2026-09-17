@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { isValidImageFile, isNodeError } from './avatar.helpers';
+import { isValidImageFile, isNodeError } from '../avatar.helpers';
 
 describe('avatar.helpers', () => {
   describe('isNodeError', () => {

@@ -8,11 +8,14 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
+  Body,
+  Patch,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { UserService } from './user.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { avatarUploadOptions } from './avatar-upload.config';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('users')
 export class UserController {
@@ -27,6 +30,13 @@ export class UserController {
       throw new NotFoundException();
     }
 
+    return user.toPublicData();
+  }
+
+  @Patch('self')
+  @UseGuards(AuthGuard)
+  async updateSelf(@Req() req: any, @Body() dto: UpdateProfileDto) {
+    const user = await this.userService.updateProfile(req.user.sub, dto.username);
     return user.toPublicData();
   }
 
