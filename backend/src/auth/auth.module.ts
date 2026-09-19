@@ -7,6 +7,9 @@ import type { StringValue } from "ms";
 import { InMemoryUserRepository } from './test-utils/inMemoryUserRepository';
 import { BcryptPasswordHasher } from './bcryptPasswordHasher';
 import { AuthGuard } from './guards/auth.guard';
+import { DenyList } from './denyList';
+import { AllowList } from './allowList';
+
 
 export const USER_REPOSITORY = 'USER_REPOSITORY';
 
@@ -25,13 +28,15 @@ export const USER_REPOSITORY = 'USER_REPOSITORY';
   providers: [
     { provide: USER_REPOSITORY, useValue: new InMemoryUserRepository([]) },
     BcryptPasswordHasher,
+    DenyList,
+    AllowList,
     AuthGuard,
     {
       provide: AuthService,
-      useFactory: (userRepo, hasher, jwtService) => new AuthService(userRepo, hasher, jwtService),
-      inject: [USER_REPOSITORY, BcryptPasswordHasher, JwtService],
+      useFactory: (userRepo, hasher, jwtService, allowList) => new AuthService(userRepo, hasher, jwtService, allowList),
+      inject: [USER_REPOSITORY, BcryptPasswordHasher, JwtService, AllowList],
     },
   ],
-  exports: [AuthService, AuthGuard],
+  exports: [AuthService, AuthGuard, DenyList, AllowList],
 })
 export class AuthModule {}

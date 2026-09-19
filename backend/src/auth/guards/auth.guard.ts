@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import { DenyList } from '../denyList';
 
 interface AuthenticatedRequest extends Request {
   user?: unknown;
@@ -8,7 +9,10 @@ interface AuthenticatedRequest extends Request {
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly denyList: DenyList
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
@@ -26,6 +30,10 @@ export class AuthGuard implements CanActivate {
     }
 
     if (payload.type !== 'access') {
+      throw new UnauthorizedException();
+    }
+
+    if (this.denyList.isRevoked(payload.jti)) {
       throw new UnauthorizedException();
     }
 

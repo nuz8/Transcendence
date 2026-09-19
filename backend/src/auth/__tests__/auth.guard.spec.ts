@@ -1,6 +1,8 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuthGuard } from '../guards/auth.guard';
+import { DenyList } from '../denyList';
+
 
 function createMockContext(request: Record<string, unknown>): ExecutionContext {
   return {
@@ -12,7 +14,9 @@ function createMockContext(request: Record<string, unknown>): ExecutionContext {
 
 describe('AuthGuard', () => {
   const jwtService = new JwtService({ secret: 'test-secret' });
-  const guard = new AuthGuard(jwtService);
+  const denyList = new DenyList();
+  const guard = new AuthGuard(jwtService, denyList);
+
 
   it('allows access with a valid token and attaches the payload to the request', async () => {
     const token = await jwtService.signAsync({ sub: '1', type: 'access' });
@@ -54,6 +58,14 @@ describe('AuthGuard', () => {
     const request = { headers: { authorization: `Bearer ${token}` } };
 
     await expect(guard.canActivate(createMockContext(request))).rejects.toThrow(UnauthorizedException);
- });
+  });
+  
+  it('rejects a token whose jti has been revoked', async () => {
+    const token = await jwtService.signAsync({ sub: '1', type: 'access', jti: 'revoked-id' });
+    denyList.revoke('revoked-id', Date.now() + 60_000);
+    const request = { headers: { authorization: `Bearer ${token}` } };
+
+    await expect(guard.canActivate(createMockContext(request))).rejects.toThrow(UnauthorizedException);
+  });
 
 });

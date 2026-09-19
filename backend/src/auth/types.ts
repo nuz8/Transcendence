@@ -20,5 +20,5 @@ export function toPublicUser(user: User): PublicUser {
 }
 
 export type RefreshResult =
-| { success: true; access_token: string }
+| { success: true; access_token: string; refresh_token: string }
 | { success: false; reason: 'INVALID_REFRESH_TOKEN' };
