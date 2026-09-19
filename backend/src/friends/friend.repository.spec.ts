@@ -114,4 +114,33 @@ describe('FriendRepository', () => {
 		});
 	});
 
+	describe('areFriends', () => {
+		it('returns true when the pair is accepted, regardless of direction', async () => {
+			const [row] = await db
+				.insert(friendships)
+				.values({ requesterId: userAId, addresseeId: userBId, status: 'accepted' })
+				.returning();
+
+			expect(await repo.areFriends(userAId, userBId)).toBe(true);
+			expect(await repo.areFriends(userBId, userAId)).toBe(true);
+
+			await db.delete(friendships).where(eq(friendships.id, row.id));
+		});
+
+		it('returns false when the pair is only pending', async () => {
+			const [row] = await db
+				.insert(friendships)
+				.values({ requesterId: userAId, addresseeId: userBId, status: 'pending' })
+				.returning();
+
+			expect(await repo.areFriends(userAId, userBId)).toBe(false);
+
+			await db.delete(friendships).where(eq(friendships.id, row.id));
+		});
+
+		it('returns false when there is no relationship at all', async () => {
+			expect(await repo.areFriends(userAId, userBId)).toBe(false);
+		});
+	});
+
 });

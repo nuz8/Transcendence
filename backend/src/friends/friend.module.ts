@@ -9,5 +9,6 @@ import { FriendService } from './friend.service';
 	imports: [AuthModule, UserModule],
 	controllers: [FriendController],
 	providers: [FriendRepository, FriendService],
+	exports: [FriendService],
 })
 export class FriendModule {}

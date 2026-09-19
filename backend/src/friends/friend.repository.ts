@@ -155,6 +155,11 @@ export class FriendRepository {
 		return rows.map((row) => this.mapRow(row));
 	}
 
+	async areFriends(userA: string, userB: string): Promise<boolean> {
+		const row = await this.findPairRow(userA, userB);
+		return row?.status === 'accepted';
+	}
+
 	private async findPairRow(userA: string, userB: string) {
 		const [row] = await this.db
 			.select()

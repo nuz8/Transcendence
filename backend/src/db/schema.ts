@@ -155,3 +155,39 @@ export const friendshipsRelations = relations(friendships, ({ one }) => ({
 		relationName: "addressee",
 	}),
 }));
+
+export const messages = pgTable(
+	"messages",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		senderId: uuid("sender_id").notNull().references(() => users.id),
+		receiverId: uuid("receiver_id").notNull().references(() => users.id),
+		content: text("content").notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+	},
+	(table) => [
+		index("messages_sender_receiver_idx").on(table.senderId, table.receiverId, table.createdAt),
+		index("messages_receiver_sender_idx").on(table.receiverId, table.senderId, table.createdAt),
+		check(
+			"messages_no_self_message",
+			sql`${table.senderId} <> ${table.receiverId}`,
+		),
+		check(
+			"messages_content_length",
+			sql`length(${table.content}) >= 1 AND length(${table.content}) <= 2000`,
+		),
+	],
+);
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+	sender: one(users, {
+		fields: [messages.senderId],
+		references: [users.id],
+		relationName: "sender",
+	}),
+	receiver: one(users, {
+		fields: [messages.receiverId],
+		references: [users.id],
+		relationName: "receiver",
+	}),
+}));

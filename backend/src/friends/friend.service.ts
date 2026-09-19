@@ -73,6 +73,10 @@ export class FriendService {
 		return this.friendRepo.listOutgoingPending(userId);
 	}
 
+	async areFriends(userA: string, userB: string): Promise<boolean> {
+		return this.friendRepo.areFriends(userA, userB);
+	}
+
 	private async respondToRequest(
 		callerId: string,
 		friendshipId: string,

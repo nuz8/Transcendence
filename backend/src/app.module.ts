@@ -12,6 +12,8 @@ import { RpsModule } from './games/rps/rps.module';
 import { FriendModule } from './friends/friend.module';
 import { UserController } from './users/user.controller';
 import { ScoreModule } from './scores';
+import { ChatModule } from './chat/chat.module';
+
 
 @Module({
   imports: [
@@ -27,6 +29,7 @@ import { ScoreModule } from './scores';
     RpsModule,
     FriendModule,
     ScoreModule,
+    ChatModule,
   ],
   controllers: [AppController, UserController],
   providers: [AppService],
