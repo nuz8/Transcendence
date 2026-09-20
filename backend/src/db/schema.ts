@@ -8,6 +8,7 @@ import {
 	uniqueIndex,
 	index,
 	check,
+	primaryKey,
 } from "drizzle-orm/pg-core";
 
 import { relations, sql } from "drizzle-orm";
@@ -27,6 +28,7 @@ export const users = pgTable(
 		email: text("email").notNull(),
 		passwordHash: text("password_hash").notNull(),
 		avatar: text("avatar").notNull().default('/static/avatars/default.svg'),
+		xp: integer("xp").notNull().default(0),
 		deletedAt: timestamp("deleted_at", {withTimezone: true}),
 	},
 	(table) => [
@@ -80,8 +82,10 @@ export const games = pgTable(
 export const scores = pgTable(
 	"scores",
 	{
-	sessionId: uuid("session_id").defaultRandom().primaryKey(),
+	sessionId: uuid("session_id").notNull(),
 	userId: uuid("user_id").notNull()
+		.references(() => users.id),
+	opponentId: uuid("opponent_id")
 		.references(() => users.id),
 	gameId: uuid("game_id").notNull()
 		.references(() => games.id),
@@ -91,9 +95,14 @@ export const scores = pgTable(
 		.notNull().defaultNow(),
 	},
 	(table) => [
+		primaryKey({ columns: [table.sessionId, table.userId] }),
 		check(
 			"scores_value_non_negative",
 			sql`${table.value} IS NULL OR ${table.value} >= 0`,
+		),
+		check(
+			"scores_opponent_not_self",
+			sql`${table.opponentId} IS NULL OR ${table.opponentId} <> ${table.userId}`,
 		),
 	],
 );

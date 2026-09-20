@@ -19,6 +19,7 @@ export class ScoreRepository {
         await this.db.insert(scores).values({
             sessionId: score.sessionId,
             userId: score.userId,
+            opponentId: score.opponentId,
             gameId: score.gameId,
             value: score.value,
             outcome: score.outcome,
@@ -38,6 +39,7 @@ export class ScoreRepository {
         return rows.map((row) => new ScoreEntity({
             sessionId: row.sessionId,
             userId: row.userId,
+            opponentId: row.opponentId,
             gameId: row.gameId,
             value: row.value ?? 0,
             outcome: row.outcome,

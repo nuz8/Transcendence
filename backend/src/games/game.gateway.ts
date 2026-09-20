@@ -117,6 +117,7 @@ export abstract class GameGateway implements OnModuleDestroy {
 
         this.scoreRepository.create(new ScoreEntity({
             sessionId,
+            opponentId: null,
             userId: session.userId,
             gameId: this.gameId,
             value: state.scoreA,
@@ -142,6 +143,7 @@ export abstract class GameGateway implements OnModuleDestroy {
 
         this.scoreRepository.create(new ScoreEntity({
             sessionId,
+            opponentId: null,
             userId: session.userId,
             gameId: this.gameId,
             value: state.scoreA,

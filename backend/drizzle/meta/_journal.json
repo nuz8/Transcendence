@@ -43,6 +43,13 @@
       "when": 1789650286793,
       "tag": "0005_add_messages_table",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789853920003,
+      "tag": "0006_scores_per_player_and_user_xp",
+      "breakpoints": true
     }
   ]
 }

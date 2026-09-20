@@ -3,6 +3,7 @@ import { type MatchOutcome } from "./score.constants";
 export type ScoreAttributes = {
     sessionId: string;
     userId: string;
+    opponentId: string | null;
     gameId: string;
     value: number;
     outcome: MatchOutcome;
@@ -12,6 +13,7 @@ export type ScoreAttributes = {
 export class ScoreEntity {
     sessionId: string;
     userId: string;
+    opponentId: string | null;
     gameId: string;
     value: number;
     outcome: MatchOutcome;
@@ -20,6 +22,7 @@ export class ScoreEntity {
     constructor(attrs: ScoreAttributes) {
         this.sessionId = attrs.sessionId;
         this.userId = attrs.userId;
+        this.opponentId = attrs.opponentId;
         this.gameId = attrs.gameId;
         this.value = attrs.value;
         this.outcome = attrs.outcome;

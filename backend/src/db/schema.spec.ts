@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { db } from './client';
 import { users, games, scores } from './schema';
 import { eq } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 
 // A valid 60-character bcrypt hash for testing valid insertions
 const VALID_BCRYPT_HASH =
@@ -233,6 +234,7 @@ describe('Database Schema Constraints', () => {
         const [score] = await db
           .insert(scores)
           .values({
+            sessionId: randomUUID(),
             userId: testUserId,
             gameId: testGameId,
             outcome: 'win',
@@ -248,6 +250,7 @@ describe('Database Schema Constraints', () => {
         const [score] = await db
           .insert(scores)
           .values({
+            sessionId: randomUUID(),
             userId: testUserId,
             gameId: testGameId,
             outcome: 'draw',
@@ -262,6 +265,7 @@ describe('Database Schema Constraints', () => {
       it('rejects negative score value', async () => {
         await expectConstraintViolation(
           db.insert(scores).values({
+            sessionId: randomUUID(),
             userId: testUserId,
             gameId: testGameId,
             outcome: 'lose',
