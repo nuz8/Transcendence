@@ -1,4 +1,16 @@
 services:
+  angular-app:
+    build:
+      context: ./frontend
+    image: angular-app
+    ports:
+      - "4200:4200"
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend
+          target: /app
+
   nest-app:
     build:
       context: ./backend

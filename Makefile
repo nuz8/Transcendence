@@ -13,6 +13,9 @@ RESET = \033[0m
 up:
 	$(COMPOSE) up --build -d
 
+watch:
+	$(COMPOSE) watch angular-app
+
 build:
 	$(COMPOSE) build
 
