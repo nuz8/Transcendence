@@ -5,6 +5,7 @@ import { WebSocket } from 'ws';
 import { isUUID } from 'class-validator';
 import { DenyList } from '../auth/denyList';
 import { ChatService } from './chat.service';
+import { SocketAuthRegistry } from '../auth/socketAuthRegistry';
 
 @WebSocketGateway({ path: '/chat' })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -15,6 +16,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		private readonly chatService: ChatService,
 		private readonly jwtService: JwtService,
 		private readonly denyList: DenyList,
+		private readonly socketAuthRegistry: SocketAuthRegistry,
 	) {}
 
 	handleConnection(client: WebSocket, request: IncomingMessage): void {
@@ -23,6 +25,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	}
 
 	handleDisconnect(client: WebSocket): void {
+		this.socketAuthRegistry.unregister(client);
 		const userId = this.users.get(client);
 		if (!userId) return;
 
@@ -67,7 +70,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 			return client.close(4401, 'unauthorized');
 
 		try {
-			const payload = await this.jwtService.verifyAsync<{ sub: string; type: string; jti: string }>(token);
+			const payload = await this.jwtService.verifyAsync<{ sub: string; type: string; jti: string; exp: number }>(token);
 
 			if (payload.type !== 'access')
 				return client.close(4401, 'unauthorized');
@@ -76,6 +79,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 			this.users.set(client, payload.sub);
 			this.addSocket(payload.sub, client);
+			this.socketAuthRegistry.register(client, payload.jti, payload.exp);
 			client.resume();
 		} catch {
 			client.close(4401, 'unauthorized');

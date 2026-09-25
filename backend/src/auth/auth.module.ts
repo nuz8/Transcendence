@@ -9,6 +9,7 @@ import { AuthGuard } from './guards/auth.guard';
 import { UserModule } from '../users';
 import { DenyList } from './denyList';
 import { AllowList } from './allowList';
+import { SocketAuthRegistry } from './socketAuthRegistry';
 
 @Module({
   imports: [
@@ -27,9 +28,10 @@ import { AllowList } from './allowList';
     BcryptPasswordHasher,
     DenyList,
     AllowList,
+    SocketAuthRegistry,
     AuthGuard,
     AuthService,
   ],
-  exports: [AuthService, AuthGuard, DenyList, AllowList],
+  exports: [AuthService, AuthGuard, DenyList, AllowList, SocketAuthRegistry],
 })
 export class AuthModule {}
