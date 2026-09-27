@@ -1,9 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import type { DB } from '../db/client';
 import { InjectDb } from "../db/db.provider";
-import { scores } from '../db/schema';
+import { scores, users } from '../db/schema';
 import { ScoreEntity } from "./score.entity";
-import { desc, eq, count } from 'drizzle-orm';
+import { desc, eq, count, sql } from 'drizzle-orm';
 import { type MatchOutcome } from "./score.constants";
 
 export type ScoreCount = {
@@ -11,19 +11,36 @@ export type ScoreCount = {
     outcome: MatchOutcome;
     total: number;
 };
+
+export type ScoreWithXp = {
+    score: ScoreEntity;
+    xp: number;
+};
+
 @Injectable()
 export class ScoreRepository {
     constructor(@InjectDb() private readonly db: DB) {}
 
-    async create(score: ScoreEntity): Promise<void> {
-        await this.db.insert(scores).values({
-            sessionId: score.sessionId,
-            userId: score.userId,
-            opponentId: score.opponentId,
-            gameId: score.gameId,
-            value: score.value,
-            outcome: score.outcome,
-            achievedAt: score.achievedAt,
+    async recordMatch(results: ScoreWithXp[]): Promise<void> {
+        if (results.length === 0)
+            return ;
+
+        await this.db.transaction(async (tx) => {
+           await tx.insert(scores).values(results.map(({ score }) => ({
+                sessionId: score.sessionId,
+                userId: score.userId,
+                opponentId: score.opponentId,
+                gameId: score.gameId,
+                value: score.value,
+                outcome: score.outcome as MatchOutcome,
+                achievedAt: score.achievedAt,
+           })));
+
+           for (const { score, xp } of results) {
+                if (xp === 0)
+                    continue ;
+                await tx.update(users).set({ xp: sql`${users.xp} + ${xp}` }).where(eq(users.id, score.userId));
+           }
         });
     }
 
