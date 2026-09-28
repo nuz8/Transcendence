@@ -50,6 +50,13 @@
       "when": 1789853920003,
       "tag": "0006_scores_per_player_and_user_xp",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790552107058,
+      "tag": "0007_add_game_settings",
+      "breakpoints": true
     }
   ]
 }

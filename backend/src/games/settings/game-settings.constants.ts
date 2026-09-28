@@ -1,0 +1,1 @@
+export const BEST_OF_OPTIONS = [1, 3, 5, 7] as const;

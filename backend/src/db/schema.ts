@@ -12,6 +12,8 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { relations, sql } from "drizzle-orm";
+import { MATCH_MODES } from "../games/match/match.types";
+import { BEST_OF_OPTIONS } from "../games/settings/game-settings.constants";
 
 export const outcomeEnum = pgEnum("outcome", [
 	"win",
@@ -19,6 +21,25 @@ export const outcomeEnum = pgEnum("outcome", [
 	"draw",
 	"forfeit",
 ]);
+
+export const matchModeEnum = pgEnum("match_mode", MATCH_MODES);
+
+export const  gameSettings = pgTable(
+	"game_settings",
+	{
+		userId: uuid("user_id").notNull().references(() => users.id),
+		gameId: uuid("game_id").notNull().references(() => games.id),
+		bestOf: integer("best_of").notNull(),
+		mode: matchModeEnum("mode").notNull().default("first-to"),
+	},
+	(table) => [
+		primaryKey({ columns: [table.userId, table.gameId] }),
+		check(
+			"game_settings_best_of_allowed",
+			sql`${table.bestOf} IN (${sql.raw(BEST_OF_OPTIONS.join(", "))})`,
+		),
+	],
+);
 
 export const users = pgTable(
 	"users",
