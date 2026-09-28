@@ -9,8 +9,21 @@ import { AuthGuard } from './guards/auth.guard';
 import { DenyList } from './denyList';
 import { AllowList } from './allowList';
 import { JwtService } from '@nestjs/jwt';
+import {
+  ApiAuthController,
+  ApiPostAuthLogin,
+  ApiPostAuthRefresh,
+  ApiPostAuthRegister,
+  ApiPostAuthLogout,
+} from './auth-api.decorators';
+import { PublicUserResponseDto } from '../users/dto/public-user-response.dto';
+import {
+  LoginResponseDto,
+  RefreshResponseDto,
+  LogoutResponseDto,
+} from './dto/auth-response.dto';
 
-
+@ApiAuthController()
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -21,8 +34,11 @@ export class AuthController {
   ) {}
 
   @Post('login')
+  @ApiPostAuthLogin()
   @HttpCode(HttpStatus.OK)
-  async login(@Body() loginDto: LoginDto) {
+  async login(
+    @Body() loginDto: LoginDto
+  ): Promise<LoginResponseDto> {
     const result = await this.authService.authenticate(loginDto.email, loginDto.password);
 
     if (!result.success) {
@@ -30,12 +46,14 @@ export class AuthController {
     }
 
     return { user: result.user, access_token: result.access_token, refresh_token: result.refresh_token };
-    
   }
 
   @Post('refresh')
+  @ApiPostAuthRefresh()
   @HttpCode(HttpStatus.OK)
-  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
+  async refresh(
+    @Body() refreshTokenDto: RefreshTokenDto
+  ): Promise<RefreshResponseDto> {
     const result = await this.authService.refresh(refreshTokenDto.refresh_token);
 
     if (!result.success) {
@@ -46,7 +64,10 @@ export class AuthController {
   }
 
   @Post('register')
-  async register(@Body() registerDto: RegisterDto) {
+  @ApiPostAuthRegister()
+  async register(
+    @Body() registerDto: RegisterDto
+  ): Promise<PublicUserResponseDto> {
     const result = await this.authService.register(
       registerDto.username,
       registerDto.email,
@@ -61,9 +82,12 @@ export class AuthController {
   }
 
   @Post('logout')
+  @ApiPostAuthLogout()
   @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
-  async logout(@Req() req: any, @Body() logoutDto: LogoutDto) {
+  async logout(
+    @Req() req: any, @Body() logoutDto: LogoutDto
+  ): Promise<LogoutResponseDto> {
     const expiresAt = req.user.exp * 1000;
     this.denyList.revoke(req.user.jti, expiresAt);
 
