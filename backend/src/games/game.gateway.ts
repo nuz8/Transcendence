@@ -8,6 +8,7 @@ import { ScoreEntity, ScoreRepository, type ScoreWithXp, XP_BY_OUTCOME } from '.
 import { MatchService } from './match/match.service';
 import type { MatchState, Player } from './match/match.types';
 import { Logger, OnModuleDestroy } from '@nestjs/common';
+import { GamificationService } from '../gamification';
 
 const RECONNECT_TIME_MS = 30_000;
 
@@ -38,6 +39,7 @@ export abstract class GameGateway implements OnModuleDestroy {
         private readonly jwtService: JwtService,
         private readonly denyList: DenyList,
         private readonly scoreRepository: ScoreRepository,
+        private readonly gamificationService: GamificationService,
     ) {}
 
     protected abstract readonly gameId: string;
@@ -207,7 +209,27 @@ export abstract class GameGateway implements OnModuleDestroy {
                 this.send(seat.client, 'over', { outcome, ...view });
         }
 
-        this.scoreRepository.recordMatch(results).catch((err) => this.logger.error(`Failed to save result of session ${sessionId}`, err));
+        const pvpWinners = results
+            .filter(({ score }) => score.opponentId !== null && score.outcome === 'win')
+            .map(({ score }) => score.userId);
+
+        void this.scoreRepository.recordMatch(results)
+            .then(async () => {
+                for (const userId of pvpWinners) {
+                    try {
+                        await this.gamificationService.processPvpWin(userId);
+                    } catch (error) {
+                        this.logger.error(
+                            `Failed to process PvP achievements for user ${userId} after session ${sessionId}`,
+                            error,
+                        );
+                    }
+                }
+            })
+            .catch((err) => this.logger.error(
+                `Failed to save result of session ${sessionId}`,
+                err,
+            ));
     }
 
     private dc(sessionId: string, side: Player): void {

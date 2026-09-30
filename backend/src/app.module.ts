@@ -13,6 +13,7 @@ import { FriendModule } from './friends/friend.module';
 import { UserController } from './users/user.controller';
 import { ScoreModule } from './scores';
 import { ChatModule } from './chat/chat.module';
+import { GamificationModule } from './gamification';
 
 
 @Module({
@@ -30,6 +31,7 @@ import { ChatModule } from './chat/chat.module';
     FriendModule,
     ScoreModule,
     ChatModule,
+    GamificationModule,
   ],
   controllers: [AppController, UserController],
   providers: [AppService],

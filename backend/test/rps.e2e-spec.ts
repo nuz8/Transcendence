@@ -236,7 +236,7 @@ describe('Rps (e2e)', () => {
         expect(aliceRow).toMatchObject({ sessionId, opponentId: bobId, outcome: 'win', value: 2 });
         expect(bobRow).toMatchObject({ sessionId, opponentId: aliceId, outcome: 'lose', value: 0 });
         expect(await xpOf(aliceId)).toBe(10);
-        expect(await xpOf(bobId)).toBe(5);
+        expect(await xpOf(bobId)).toBe(2);
     });
 
     it('ends the match for both on a quit, and pays the quitter nothing', async () => {

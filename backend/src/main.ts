@@ -10,9 +10,11 @@ import db from './db/client';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { seedAchievements } from './gamification/seed-achievements';
 
 async function bootstrap() {
   await migrate(db, { migrationsFolder: join(process.cwd(), 'drizzle') });
+  await seedAchievements(db); // Seed achievements catalog data into the achievements table
 
   const httpsOptions = {
     key: readFileSync('./secrets/key.pem'),

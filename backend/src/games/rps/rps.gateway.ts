@@ -7,6 +7,7 @@ import { ScoreRepository } from '../../scores';
 import { RPS_GAME_ID } from './rps.constants';
 import { GameGateway, type Session } from '../game.gateway';
 import { MatchService } from '../match/match.service';
+import { GamificationService } from '../../gamification';
 import type { Move } from './rps.types';
 import type { Player } from '../match/match.types';
 
@@ -24,8 +25,9 @@ export class RpsGateway extends GameGateway implements OnGatewayConnection, OnGa
         jwtService: JwtService,
         denyList: DenyList,
         scoreRepository: ScoreRepository,
+        gamificationService: GamificationService,
     ) {
-        super(matchService, jwtService, denyList, scoreRepository);
+        super(matchService, jwtService, denyList, scoreRepository, gamificationService);
     }
 
     @SubscribeMessage('move')

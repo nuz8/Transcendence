@@ -56,10 +56,12 @@ export const users = pgTable(
 		uniqueIndex("users_username_active_unique")
 		.on(table.username)
 		.where(sql`${table.deletedAt} IS NULL`),
-		// Case-sensitive uniqueness, but email case is lowered already in the DTO
 		uniqueIndex("users_email_active_unique")
 		.on(table.email)
 		.where(sql`${table.deletedAt} IS NULL`),
+		index("users_leaderboard_idx")
+			.on(table.xp.desc(), table.username.asc())
+			.where(sql`${table.deletedAt} IS NULL`),
 		check(
 			"users_username_length",
 			sql`${table.username} = trim(${table.username})
@@ -117,6 +119,10 @@ export const scores = pgTable(
 	},
 	(table) => [
 		primaryKey({ columns: [table.sessionId, table.userId] }),
+		index("scores_user_outcome_index").on(table.userId, table.outcome),
+		index("scores_pvp_wins_by_user_idx")
+			.on(table.userId)
+			.where(sql`${table.outcome} = 'win' AND ${table.opponentId} IS NOT NULL`),
 		check(
 			"scores_value_non_negative",
 			sql`${table.value} IS NULL OR ${table.value} >= 0`,
@@ -130,6 +136,7 @@ export const scores = pgTable(
 
 export const usersRelations = relations(users, ({ many }) => ({
 	scores: many(scores),
+	userAchievements: many(userAchievements),
 }));
 
 export const gamesRelations = relations(games, ({ many }) => ({
@@ -219,5 +226,55 @@ export const messagesRelations = relations(messages, ({ one }) => ({
 		fields: [messages.receiverId],
 		references: [users.id],
 		relationName: "receiver",
+	}),
+}));
+
+export const achievements = pgTable(
+	"achievements",
+	{
+		id: text("id").primaryKey(), // eg. "WIN_1", "WIN_2", etc.
+		title: text("title").notNull(),
+		description: text("description").notNull(),
+		badgeUrl: text("badge_url").notNull(),
+		targetWins: integer("target_wins").notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+	},
+	(table) => [
+		uniqueIndex("achievements_target_wins_unique").on(table.targetWins),
+		check("achievements_target_wins_positive", sql`${table.targetWins} > 0`),
+	],
+);
+
+export const userAchievements = pgTable(
+	"user_achievements",
+	{
+		userId: uuid("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		achievementId: text("achievement_id")
+			.notNull()
+			.references(() => achievements.id, { onDelete: "cascade" }),
+		unlockedAt: timestamp("unlocked_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+	},
+	(table) => [
+		primaryKey({ columns: [table.userId, table.achievementId] }),
+		index("user_achievements_user_id_idx").on(table.userId),
+	],
+);
+
+export const achievementsRelations = relations(achievements, ({ many }) => ({
+	userAchievements: many(userAchievements),
+}));
+
+export const userAchievementsRelations = relations(userAchievements, ({ one }) => ({
+	user: one(users, {
+		fields: [userAchievements.userId],
+		references: [users.id],
+	}),
+	achievement: one(achievements, {
+		fields: [userAchievements.achievementId],
+		references: [achievements.id],
 	}),
 }));

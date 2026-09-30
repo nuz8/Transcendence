@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, eq, isNull } from 'drizzle-orm';
+import { sql, and, eq, isNull } from 'drizzle-orm';
 import { UserEntity } from './user.entity';
 import { USER_CONSTRAINTS } from './user.constants';
 import {

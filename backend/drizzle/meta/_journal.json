@@ -57,6 +57,13 @@
       "when": 1790552107058,
       "tag": "0007_add_game_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790710196242,
+      "tag": "0008_add_achievements_tables",
+      "breakpoints": true
     }
   ]
 }
