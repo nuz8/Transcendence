@@ -6,9 +6,10 @@ import { RpsService } from './rps.service';
 import { AuthModule } from '../../auth/auth.module';
 import { ScoreModule } from '../../scores'
 import { GamificationModule } from '../../gamification';
+import { PresenceModule } from '../../presence/presence.module';
 
 @Module({
-    imports: [AuthModule, ScoreModule, GameModule, GamificationModule],
+    imports: [AuthModule, ScoreModule, GameModule, GamificationModule, PresenceModule],
     providers: [RpsService, RpsGateway],
 })
 export class RpsModule implements OnModuleInit {

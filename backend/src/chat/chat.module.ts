@@ -6,9 +6,10 @@ import { ChatController } from './chat.controller';
 import { ChatGateway } from './chat.gateway';
 import { ChatRepository } from './chat.repository';
 import { ChatService } from './chat.service';
+import { PresenceModule } from '../presence/presence.module';
 
 @Module({
-	imports: [AuthModule, FriendModule, UserModule],
+	imports: [AuthModule, FriendModule, UserModule, PresenceModule],
 	controllers: [ChatController],
 	providers: [ChatRepository, ChatService, ChatGateway],
 })

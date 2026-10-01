@@ -4,6 +4,9 @@ import { GamificationService } from '../../gamification';
 import { ScoreRepository, type ScoreWithXp } from '../../scores';
 import { MatchService } from '../match/match.service';
 import { GameGateway, type Session } from '../game.gateway';
+import { PresenceService } from '../../presence/presence.service';
+import type { WebSocket } from 'ws';
+import type { IncomingMessage } from 'node:http';
 
 class TestGateway extends GameGateway {
   protected readonly gameId = 'test-game';
@@ -12,15 +15,19 @@ class TestGateway extends GameGateway {
 
   constructor(
     matchService: MatchService,
+    jwtService: JwtService,
+    denyList: DenyList,
     scoreRepository: ScoreRepository,
     gamificationService: GamificationService,
+    presenceService: PresenceService,
   ) {
     super(
       matchService,
-      {} as JwtService,
-      {} as DenyList,
+      jwtService,
+      denyList,
       scoreRepository,
       gamificationService,
+      presenceService,
     );
   }
 
@@ -50,10 +57,13 @@ describe('GameGateway.finish', () => {
     matchService = { matchOutcome: jest.fn() };
     scoreRepository = { recordMatch: jest.fn().mockResolvedValue(undefined) };
     gamificationService = { processPvpWin: jest.fn().mockResolvedValue([]) };
-    gateway = new TestGateway(
+      gateway = new TestGateway(
       matchService as unknown as MatchService,
+      {} as JwtService,
+      {} as DenyList,
       scoreRepository as unknown as ScoreRepository,
       gamificationService as unknown as GamificationService,
+      new PresenceService(),
     );
   });
 
@@ -106,5 +116,77 @@ describe('GameGateway.finish', () => {
       ['draw', 5],
       ['forfeit', 0],
     ]);
+  });
+});
+
+describe('GameGateway - presence tracking', () => {
+  let jwtService: JwtService;
+  let denyList: DenyList;
+  let presenceService: PresenceService;
+  let gateway: TestGateway;
+
+  function fakeSocket(): WebSocket {
+    return { pause: jest.fn(), resume: jest.fn(), close: jest.fn(), readyState: 1 } as unknown as WebSocket;
+  }
+
+  function fakeRequest(token: string): IncomingMessage {
+    return { headers: { authorization: `Bearer ${token}` } } as unknown as IncomingMessage;
+  }
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jwtService = { verifyAsync: jest.fn() } as unknown as JwtService;
+    denyList = new DenyList();
+    presenceService = new PresenceService();
+    gateway = new TestGateway(
+      {} as MatchService,
+      jwtService,
+      denyList,
+      {} as ScoreRepository,
+      {} as GamificationService,
+      presenceService,
+    );
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('marks the user online once authenticated', async () => {
+    const client = fakeSocket();
+    (jwtService.verifyAsync as jest.Mock).mockResolvedValue({ sub: 'user-1', type: 'access', jti: 'jti-1' });
+
+    gateway.handleConnection(client, fakeRequest('token'));
+    await jest.advanceTimersByTimeAsync(0);
+
+    expect(presenceService.isOnline('user-1')).toBe(true);
+  });
+
+  it('marks the user offline once disconnected', async () => {
+    const client = fakeSocket();
+    (jwtService.verifyAsync as jest.Mock).mockResolvedValue({ sub: 'user-1', type: 'access', jti: 'jti-1' });
+
+    gateway.handleConnection(client, fakeRequest('token'));
+    await jest.advanceTimersByTimeAsync(0);
+
+    gateway.handleDisconnect(client);
+
+    expect(presenceService.isOnline('user-1')).toBe(false);
+  });
+
+  it('does not register a socket that closed while verifyAsync was still pending', async () => {
+    const client = fakeSocket();
+    let resolveVerify!: (payload: unknown) => void;
+    (jwtService.verifyAsync as jest.Mock).mockImplementation(
+      () => new Promise((resolve) => { resolveVerify = resolve; }),
+    );
+
+    gateway.handleConnection(client, fakeRequest('token'));
+    (client as unknown as { readyState: number }).readyState = 3; // WebSocket.CLOSED
+    resolveVerify({ sub: 'user-1', type: 'access', jti: 'jti-1' });
+    await jest.advanceTimersByTimeAsync(0);
+
+    expect(presenceService.isOnline('user-1')).toBe(false);
+    expect(client.resume).not.toHaveBeenCalled();
   });
 });

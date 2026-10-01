@@ -10,6 +10,7 @@ import { MatchService } from '../match/match.service';
 import { GamificationService } from '../../gamification';
 import type { Move } from './rps.types';
 import type { Player } from '../match/match.types';
+import { PresenceService } from '../../presence/presence.service';
 
 const BEST_OF = 3;
 const ROUND_TIME_LIMIT = 60_000;
@@ -26,8 +27,9 @@ export class RpsGateway extends GameGateway implements OnGatewayConnection, OnGa
         denyList: DenyList,
         scoreRepository: ScoreRepository,
         gamificationService: GamificationService,
+        presenceService: PresenceService,
     ) {
-        super(matchService, jwtService, denyList, scoreRepository, gamificationService);
+        super(matchService, jwtService, denyList, scoreRepository, gamificationService, presenceService);
     }
 
     @SubscribeMessage('move')

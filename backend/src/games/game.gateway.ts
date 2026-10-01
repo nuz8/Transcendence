@@ -9,6 +9,7 @@ import { MatchService } from './match/match.service';
 import type { MatchState, Player } from './match/match.types';
 import { Logger, OnModuleDestroy } from '@nestjs/common';
 import { GamificationService } from '../gamification';
+import { PresenceService } from '../presence/presence.service';
 
 const RECONNECT_TIME_MS = 30_000;
 
@@ -40,6 +41,7 @@ export abstract class GameGateway implements OnModuleDestroy {
         private readonly denyList: DenyList,
         private readonly scoreRepository: ScoreRepository,
         private readonly gamificationService: GamificationService,
+        private readonly presenceService: PresenceService,
     ) {}
 
     protected abstract readonly gameId: string;
@@ -75,7 +77,10 @@ export abstract class GameGateway implements OnModuleDestroy {
             this.sessionBySocket.delete(client);
             this.sessions.delete(sessionId);
         }
+        const userId = this.users.get(client);
         this.users.delete(client);
+        if (userId)
+            this.presenceService.disconnect(userId, client);
     }
 
     @SubscribeMessage('create')
@@ -296,8 +301,10 @@ export abstract class GameGateway implements OnModuleDestroy {
                 return client.close(401, 'unauthorized');
             if (this.denyList.isRevoked(payload.jti))
                 return client.close(401, 'unauthorized');
+            if (client.readyState !== WebSocket.OPEN) return;
 
             this.users.set(client, payload.sub);
+            this.presenceService.connect(payload.sub, client);
             client.resume();
             } catch {
                 client.close(401, 'unauthorized');

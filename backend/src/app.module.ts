@@ -14,12 +14,14 @@ import { UserController } from './users/user.controller';
 import { ScoreModule } from './scores';
 import { ChatModule } from './chat/chat.module';
 import { GamificationModule } from './gamification';
+import { PresenceModule } from './presence/presence.module';
 
 
 @Module({
   imports: [
     AuthModule,
     UserModule,
+    PresenceModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnv,
