@@ -9,6 +9,7 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import db from './db/client';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { seedAchievements } from './gamification/seed-achievements';
 
@@ -23,6 +24,12 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     httpsOptions,
   });
+  const configService = app.get(ConfigService);
+  app.enableCors({
+    origin: configService.get<string>('FRONTEND_URL', 'http://localhost:4200'),
+    credentials: true,
+  });
+  app.use(cookieParser());
 
   const config = new DocumentBuilder()
     .setTitle('Transcendence API')
@@ -46,7 +53,6 @@ async function bootstrap() {
   });
   app.useWebSocketAdapter(new WsAdapter(app));
   app.enableShutdownHooks();
-  const configService = app.get(ConfigService);
   await app.listen(configService.get<number>('PORT', 3000));
 }
 bootstrap();

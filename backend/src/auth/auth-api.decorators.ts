@@ -33,8 +33,7 @@ export function ApiPostAuthRefresh() {
   return applyDecorators(
     ApiOperation({ summary: 'Refresh the authentication tokens' }),
     ApiOkResponse({ type: RefreshResponseDto }),
-    ApiBadRequestResponse({ description: 'The refresh-token request is invalid.' }),
-    ApiUnauthorizedResponse({ description: 'The refresh token is invalid or expired.' }),
+    ApiUnauthorizedResponse({ description: 'The refresh token cookie is missing, invalid, or expired.' }),
   );
 }
 
@@ -52,7 +51,6 @@ export function ApiPostAuthLogout() {
     ApiBearerAuth('access-token'),
     ApiOperation({ summary: 'Log out and revoke the current tokens' }),
     ApiOkResponse({ type: LogoutResponseDto }),
-    ApiBadRequestResponse({ description: 'The logout request is invalid.' }),
     ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' }),
   );
 }

@@ -24,6 +24,14 @@ export const AUTH_VALID_MSGS = {
 	PASSWORD_REQUIRED: 'Password must not be empty',
 	PASSWORD_LENGTH: `Password must be between ${AUTH_VALID_RULES.PASSWORD.MIN} and ${AUTH_VALID_RULES.PASSWORD.MAX} characters long`,
 
-	REFRESH_TOKEN_REQUIRED: 'Refresh token must not be empty',
-	REFRESH_TOKEN_STRING: 'Refresh token must be a string',
+} as const;
+
+export const REFRESH_TOKEN_COOKIE = {
+	NAME: 'refresh_token',
+	OPTIONS: {
+		httpOnly: true,
+		secure: true,
+		sameSite: 'strict',
+		path: '/auth',
+	} as const,
 } as const;

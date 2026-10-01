@@ -8,7 +8,12 @@ import { eq } from 'drizzle-orm';
 import { WsAdapter } from '@nestjs/platform-ws';
 import { join } from 'node:path';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import cookieParser from 'cookie-parser';
 
+
+function extractCookie(res: request.Response): string {
+  return res.headers['set-cookie'][0].split(';')[0];
+}
 
 describe('Auth Registration (e2e)', () => {
   let app: NestExpressApplication;
@@ -31,6 +36,7 @@ describe('Auth Registration (e2e)', () => {
         transform: true,
       }),
     );
+    app.use(cookieParser());
     await app.init();
   });
 
@@ -185,4 +191,76 @@ describe('Auth Registration (e2e)', () => {
       .expect(200)
       .expect('Content-Type', /image\/svg\+xml/);
   });
+
+  describe('POST /auth/login, /auth/refresh, /auth/logout', () => {
+    beforeAll(async () => {
+      await request(app.getHttpServer()).post('/auth/register').send({
+        username: 'auth_flow_user',
+        email: 'auth_flow_e2e@example.com',
+        password: 'password123',
+      });
+    });
+
+    afterAll(async () => {
+      await db.delete(users).where(eq(users.email, 'auth_flow_e2e@example.com'));
+    });
+
+    it('sets the refresh token as an httpOnly cookie, never in the body', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: 'auth_flow_e2e@example.com', password: 'password123' })
+        .expect(200);
+
+      expect(res.body.access_token).toEqual(expect.any(String));
+      expect(res.body.refresh_token).toBeUndefined();
+
+      const cookie = res.headers['set-cookie'][0];
+      expect(cookie).toContain('refresh_token=');
+      expect(cookie).toContain('HttpOnly');
+    });
+
+    it('rejects /auth/refresh with no cookie', async () => {
+      await request(app.getHttpServer()).post('/auth/refresh').expect(401);
+    });
+
+    it('rotates the refresh token cookie on /auth/refresh', async () => {
+      const loginRes = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: 'auth_flow_e2e@example.com', password: 'password123' })
+        .expect(200);
+      const firstCookie = extractCookie(loginRes);
+
+      const refreshRes = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .set('Cookie', firstCookie)
+        .expect(200);
+
+      expect(refreshRes.body.access_token).toEqual(expect.any(String));
+      expect(refreshRes.body.refresh_token).toBeUndefined();
+      expect(extractCookie(refreshRes)).not.toBe(firstCookie);
+    });
+
+    it('clears the cookie and revokes the refresh token on logout', async () => {
+      const loginRes = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: 'auth_flow_e2e@example.com', password: 'password123' })
+        .expect(200);
+      const cookie = extractCookie(loginRes);
+      const accessToken = loginRes.body.access_token;
+
+      const logoutRes = await request(app.getHttpServer())
+        .post('/auth/logout')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .set('Cookie', cookie)
+        .expect(200);
+
+            expect(extractCookie(logoutRes)).toBe('refresh_token=');
+
+      await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .set('Cookie', cookie)
+        .expect(401);
+    });
+  });
+
 });

@@ -4,6 +4,7 @@ export const envSchema = z.object({
   JWT_SECRET: z.string().min(32),
   TOKEN_EXPIRATION_TIME: z.string().optional(),
   APP_PORT: z.coerce.number().optional(),
+  FRONTEND_URL: z.string().url().optional(),
 });
 
 export function validateEnv(env: Record<string, unknown>) {
