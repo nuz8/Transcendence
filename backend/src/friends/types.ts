@@ -11,3 +11,18 @@ export type RespondToFriendRequestResult =
 export type RemoveFriendResult =
 	| { success: true }
 	| { success: false; reason: 'FRIENDSHIP_NOT_FOUND' | 'NOT_ALLOWED_ON_THIS_FRIENDSHIP' };
+
+export const FRIENDSHIP_STATES = [
+    'self',
+    'none',
+    'friends',
+    'pending_outgoing',
+    'pending_incoming',
+] as const;
+
+export type FriendshipState = (typeof FRIENDSHIP_STATES)[number];
+
+export type FriendshipRelationship = {
+	state: FriendshipState;
+	friendshipId: string | null;
+};

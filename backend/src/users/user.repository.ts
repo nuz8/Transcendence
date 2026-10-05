@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { sql, and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { UserEntity } from './user.entity';
 import { USER_CONSTRAINTS } from './user.constants';
 import {
@@ -15,6 +15,15 @@ export class UserConflictError extends Error {
 		super(`${field.toUpperCase()}_ALREADY_EXISTS`);
 	}
 }
+
+export type UserProfileData = {
+	id: string;
+	username: string;
+	avatar: string;
+	xp: number;
+};
+
+export type SelfProfileData = UserProfileData & { email: string; };
 
 @Injectable()
 export class UserRepository {
@@ -165,5 +174,36 @@ export class UserRepository {
 		} catch (error: any) {
 			throw this.toConflict(error);
 		}
+	}
+
+	async findProfileById(id: string): Promise<UserProfileData | null> {
+		const [row] = await this.db
+			.select({
+				id: users.id,
+				username: users.username,
+				avatar: users.avatar,
+				xp: users.xp,
+			})
+			.from(users)
+			.where(and(eq(users.id, id), isNull(users.deletedAt)))
+			.limit(1);
+		
+		return row ?? null;
+	}
+
+	async findSelfProfileById(id: string): Promise<SelfProfileData | null> {
+		const [row] = await this.db
+            .select({
+                id: users.id,
+                username: users.username,
+                email: users.email,
+                avatar: users.avatar,
+                xp: users.xp,
+            })
+            .from(users)
+            .where(and(eq(users.id, id), isNull(users.deletedAt)))
+            .limit(1);
+
+        return row ?? null;
 	}
 }

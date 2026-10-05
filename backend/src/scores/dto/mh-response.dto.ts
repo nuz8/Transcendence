@@ -1,7 +1,27 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { MATCH_OUTCOMES, type MatchOutcome } from '../score.constants';
 
+export class MatchOpponentResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string | null;
+
+  @ApiProperty({ example: 'player_two' })
+  username!: string;
+
+  @ApiProperty({ example: '/static/avatars/default.svg' })
+  avatar!: string;
+
+  @ApiProperty({
+    example: false,
+    description: 'True of the opponent account has been soft-deleted.'
+  })
+  isDeleted!: boolean;
+}
+
 export class MatchHistoryItemResponseDto {
+  @ApiProperty({ format: 'uuid', description: 'Identifier of the match session.' })
+  sessionId!: string;
+
   @ApiProperty({ description: 'Identifier of the game.' })
   gameId!: string;
 
@@ -20,6 +40,9 @@ export class MatchHistoryItemResponseDto {
     example: '2026-09-24T12:00:00.000Z',
   })
   achievedAt!: Date;
+
+  @ApiProperty({ type: MatchOpponentResponseDto, nullable: true })
+  opponent!: MatchOpponentResponseDto | null;
 }
 
 export class MatchHistoryResponseDto {

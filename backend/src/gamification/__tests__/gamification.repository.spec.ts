@@ -78,4 +78,31 @@ describe('GamificationRepository', () => {
       });
     });
   });
+
+  describe('countActiveUsersAheadOf', () => {
+    it('counts active users with higher XP or an earlier username at equal XP', async () => {
+      const where = jest.fn().mockResolvedValue([{ total: 2 }]);
+      const from = jest.fn().mockReturnValue({ where });
+      const select = jest.fn().mockReturnValue({ from });
+      const repository = new GamificationRepository({ select } as unknown as DB);
+
+      await expect(repository.countActiveUsersAheadOf('alice', 50)).resolves.toBe(2);
+
+      const query = new PgDialect().sqlToQuery(where.mock.calls[0][0]);
+      expect(query.sql).toContain('"deleted_at" is null');
+      expect(query.sql).toContain('"xp" >');
+      expect(query.sql).toContain('"xp" =');
+      expect(query.sql).toContain('"username" <');
+      expect(query.params).toEqual([50, 50, 'alice']);
+    });
+
+    it('returns zero when nobody ranks ahead', async () => {
+      const where = jest.fn().mockResolvedValue([{ total: 0 }]);
+      const from = jest.fn().mockReturnValue({ where });
+      const select = jest.fn().mockReturnValue({ from });
+      const repository = new GamificationRepository({ select } as unknown as DB);
+
+      await expect(repository.countActiveUsersAheadOf('alice', 0)).resolves.toBe(0);
+    });
+  });
 });

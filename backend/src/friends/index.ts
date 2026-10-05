@@ -2,4 +2,11 @@ export { type FriendshipAttributes, type FriendshipStatus, FriendshipEntity } fr
 export { FRIEND_CONSTRAINTS } from './friend.constants';
 export { FriendRepository, FriendRequestConflictError } from './friend.repository';
 export { FriendService } from './friend.service';
-export type { SendFriendRequestResult, RespondToFriendRequestResult, RemoveFriendResult } from './types';
+export { FRIENDSHIP_STATES } from './types'
+export type {
+	SendFriendRequestResult,
+	RespondToFriendRequestResult,
+	RemoveFriendResult,
+	FriendshipState,
+	FriendshipRelationship,
+} from './types';

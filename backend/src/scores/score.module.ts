@@ -9,6 +9,6 @@ import { GameModule } from '../games/game.module';
     imports: [AuthModule, GameModule],
     controllers: [ScoreController],
     providers: [ScoreService, ScoreRepository],
-    exports: [ScoreRepository],
+    exports: [ScoreRepository, ScoreService],
 })
 export class ScoreModule {}

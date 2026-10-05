@@ -3,7 +3,7 @@ import type { DB } from '../db/client';
 import { InjectDb } from "../db/db.provider";
 import { scores, users } from '../db/schema';
 import { ScoreEntity } from "./score.entity";
-import { desc, eq, count, sql } from 'drizzle-orm';
+import { desc, eq, count, sql, isNull, and } from 'drizzle-orm';
 import { type MatchOutcome } from "./score.constants";
 
 export type ScoreCount = {
@@ -15,6 +15,16 @@ export type ScoreCount = {
 export type ScoreWithXp = {
     score: ScoreEntity;
     xp: number;
+};
+
+export type ScoreWithOpponent = {
+    score: ScoreEntity;
+    opponent: {
+        id: string | null;
+        username: string;
+        avatar: string;
+        isDeleted: boolean;
+    };
 };
 
 @Injectable()
@@ -44,24 +54,71 @@ export class ScoreRepository {
         });
     }
 
-    async findByUser(userId: string, limit: number, offset: number): Promise<ScoreEntity[]> {
+    async findByUser(
+        userId: string,
+        limit: number,
+        offset: number
+    ): Promise<ScoreWithOpponent[]> {
         const rows = await this.db
-            .select()
+            .select({
+                sessionId: scores.sessionId,
+                opponentId: scores.opponentId,
+                gameId: scores.gameId,
+                value: scores.value,
+                outcome: scores.outcome,
+                achievedAt: scores.achievedAt,
+                opponentUsername: users.username,
+                opponentAvatar: users.avatar,
+                opponentDeletedAt: users.deletedAt,
+            })
             .from(scores)
+            .leftJoin(users, eq(users.id, scores.opponentId))
             .where(eq(scores.userId, userId))
             .orderBy(desc(scores.achievedAt), desc(scores.sessionId))
             .limit(limit)
             .offset(offset);
 
-        return rows.map((row) => new ScoreEntity({
-            sessionId: row.sessionId,
-            userId: row.userId,
-            opponentId: row.opponentId,
-            gameId: row.gameId,
-            value: row.value ?? 0,
-            outcome: row.outcome,
-            achievedAt: row.achievedAt,
-        }));
+        return rows.map((row) => {
+            let opponent = null;
+            if (row.opponentId === null) {
+                opponent = {
+                    id: null,
+                    username: 'Bot',
+                    avatar: '/static/avatars/bot.svg',
+                    isDeleted: false,
+                }
+            } else if (
+                row.opponentDeletedAt !== null ||
+                row.opponentUsername === null ||
+                row.opponentAvatar === null
+            ) {
+                opponent = {
+                    id: row.opponentId,
+                    username: 'Deleted User',
+                    avatar: '/static/avatars/deleted.svg',
+                    isDeleted: true,
+                };
+            } else {
+                opponent = {
+                    id: row.opponentId,
+                    username: row.opponentUsername,
+                    avatar: row.opponentAvatar,
+                    isDeleted: false,
+                };
+            }
+            return {
+                score: new ScoreEntity({
+                    sessionId: row.sessionId,
+                    userId,
+                    opponentId: row.opponentId,
+                    gameId: row.gameId,
+                    value: row.value ?? 0,
+                    outcome: row.outcome,
+                    achievedAt: row.achievedAt,
+                }),
+                opponent,
+            };
+        });
     }
 
     async countByUser(userId: string): Promise<number> {

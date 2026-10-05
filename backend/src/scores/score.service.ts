@@ -5,12 +5,21 @@ import { GameService } from "../games";
 import { MatchHistoryQueryDto } from "./dto/mh-query.dto";
 import { MatchOutcome } from "./score.constants";
 
+export type MatchOpponent = {
+    id: string | null;
+    username: string;
+    avatar: string;
+    isDeleted: boolean;
+}
+
 export type MatchHistoryEntry = {
+    sessionId: string;
     gameId: string;
     gameName: string;
     outcome: MatchOutcome;
     value: number;
     achievedAt: Date;
+    opponent: MatchOpponent | null;
 };
 
 export type Stats = {
@@ -22,7 +31,6 @@ export type Stats = {
 };
 
 export type GameStats = Stats & { gameId: string, gameName: string };
-
 export type UserStats = Stats & { games: GameStats[] };
 
 const OUTCOME_FIELD = {
@@ -50,14 +58,15 @@ export class ScoreService {
 
         const nameById = new Map(games.map((game) => [game.id, game.name]));
 
-        const matches = rows.map((row) => ({
-            gameId: row.gameId,
-            gameName: nameById.get(row.gameId) ?? 'Unknown game',
-            outcome: row.outcome,
-            value: row.value,
-            achievedAt: row.achievedAt,
+        const matches = rows.map(({ score, opponent }) => ({
+            sessionId: score.sessionId,
+            gameId: score.gameId,
+            gameName: nameById.get(score.gameId) ?? 'Unknown game',
+            outcome: score.outcome,
+            value: score.value,
+            achievedAt: score.achievedAt,
+            opponent,
         }));
-        
         return { matches, total };
     }
 

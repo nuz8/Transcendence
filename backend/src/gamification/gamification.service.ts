@@ -157,4 +157,13 @@ export class GamificationService {
       achievements: all,
     };
   }
+
+  async getGlobalRank(username: string, xp: number): Promise<number> {
+    const usersAhead = await this
+      .gamificationRepository.countActiveUsersAheadOf(
+        username,
+        xp,
+      );
+    return usersAhead + 1;
+  }
 }

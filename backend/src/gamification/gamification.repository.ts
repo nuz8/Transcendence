@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectDb, type DB } from "../db";
-import { eq, and, desc, asc, isNull, isNotNull, count, lte } from 'drizzle-orm';
+import { eq, and, desc, asc, isNull, isNotNull, count, lte, gt, lt, or } from 'drizzle-orm';
 import { users, scores, achievements, userAchievements } from "../db/schema";
 
 export type UnlockedAchievement = {
@@ -123,7 +123,7 @@ export class GamificationRepository {
   }
 
   /**
-   * Fn to count total number of active (non-deleted) users (for total pages calculation).
+   * Method to count total number of active (non-deleted) users (for total pages calculation).
    */
   async countActiveUsers(): Promise<number> {
     const [rows] = await this.db
@@ -132,5 +132,24 @@ export class GamificationRepository {
       .where(isNull(users.deletedAt));
 
     return rows?.total ?? 0;
+  }
+
+  /**
+   * Method to count the active (non-deleted) users ahead of the target user
+   */
+  async countActiveUsersAheadOf(username: string, xp: number): Promise<number> {
+    const [row] = await this.db
+      .select({ total: count() })
+      .from(users)
+      .where(
+        and(
+          isNull(users.deletedAt),
+          or(
+            gt(users.xp, xp),
+            and(eq(users.xp, xp), lt(users.username, username)),
+          ),
+        ),
+      );
+    return row?.total ?? 0;
   }
 }

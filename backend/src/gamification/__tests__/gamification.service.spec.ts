@@ -17,6 +17,7 @@ describe('GamificationService', () => {
     findAchievementsByUser: jest.Mock;
     findLeaderboardUsers: jest.Mock;
     countActiveUsers: jest.Mock;
+    countActiveUsersAheadOf: jest.Mock;
   };
   let userService: {
     findById: jest.Mock;
@@ -30,6 +31,7 @@ describe('GamificationService', () => {
       findAchievementsByUser: jest.fn(),
       findLeaderboardUsers: jest.fn(),
       countActiveUsers: jest.fn(),
+      countActiveUsersAheadOf: jest.fn(),
     };
 
     userService = {
@@ -267,6 +269,21 @@ describe('GamificationService', () => {
 
       expect(gamificationRepo.countPvpWins).not.toHaveBeenCalled();
       expect(gamificationRepo.findAchievementsByUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getGlobalRank', () => {
+    it('returns one plus the number of active users ahead', async () => {
+      gamificationRepo.countActiveUsersAheadOf.mockResolvedValue(2);
+
+      await expect(service.getGlobalRank('alice', 50)).resolves.toBe(3);
+      expect(gamificationRepo.countActiveUsersAheadOf).toHaveBeenCalledWith('alice', 50);
+    });
+
+    it('returns rank one when nobody is ahead', async () => {
+      gamificationRepo.countActiveUsersAheadOf.mockResolvedValue(0);
+
+      await expect(service.getGlobalRank('alice', 0)).resolves.toBe(1);
     });
   });
 });

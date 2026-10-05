@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
-import { UserRepository, UserConflictError } from './user.repository';
+import { UserRepository, UserConflictError, type UserProfileData, type SelfProfileData } from './user.repository';
 import { UserEntity } from './user.entity';
 import { AVATAR_CONSTANTS } from './user.constants';
 import { basename, join } from 'node:path';
@@ -53,7 +53,7 @@ export class UserService {
       throw error;
     }
   }
-  /** Helper fn to build safe file path, and delete it from disk without throwing.
+  /** Helper method to build safe file path, and delete it from disk without throwing.
    * Safely deletes a file from the uploads directory by filename.
    * Uses path.basename to prevent path traversal attacks.
    * Ignores ENOENT (file not found), the desired outcome is achieved if the file is not there.
@@ -74,7 +74,7 @@ export class UserService {
     }
   }
 
-  /** Fn to delete avatar file from disk.
+  /** Method to delete avatar file from disk.
    * Safely deletes an avatar file from the disk.
    * Never deletes default assets or files outside the upload directory.
   */
@@ -91,7 +91,7 @@ export class UserService {
     await this.safelyRemoveFileByName(basename(avatarUrl));
   }
 
-  /** Fn to update avatar file for a user.
+  /** Method to update avatar file for a user.
    * Updates user avatar.
    * Cleans up old custom avatar upon success.
    * Cleans up the newly uploaded file if the user is missing or DB fails.
@@ -137,5 +137,13 @@ export class UserService {
     // 5. Clean up old avatar file and return updated user entity
     await this.deleteAvatarFile(oldAvatar);
     return updatedUser;
+  }
+
+  async findProfileById(id: string): Promise<UserProfileData | null> {
+    return this.userRepo.findProfileById(id);
+  }
+
+  async findSelfProfileById(id: string): Promise<SelfProfileData | null> {
+    return this.userRepo.findSelfProfileById(id);
   }
 }

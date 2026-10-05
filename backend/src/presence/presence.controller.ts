@@ -2,11 +2,14 @@ import { Controller, ForbiddenException, Get, Param, ParseUUIDPipe, Req, UseGuar
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { FriendService } from '../friends';
 import { PresenceService } from './presence.service';
+import { ApiGetUserOnlineStatus, ApiPresenceController } from './presence-api.decorators';
+import { OnlineStatusResponseDto } from './dto/online-status-response.dto';
 
 interface AuthenticatedRequest {
 	user: { sub: string };
 }
 
+@ApiPresenceController()
 @Controller('users')
 @UseGuards(AuthGuard)
 export class PresenceController {
@@ -16,7 +19,11 @@ export class PresenceController {
 	) {}
 
 	@Get(':id/online')
-	async isOnline(@Req() req: AuthenticatedRequest, @Param('id', new ParseUUIDPipe()) id: string) {
+	@ApiGetUserOnlineStatus()
+	async isOnline(
+		@Req() req: AuthenticatedRequest,
+		@Param('id', new ParseUUIDPipe()) id: string,
+	): Promise<OnlineStatusResponseDto> {
 		if (id !== req.user.sub && !(await this.friendService.areFriends(req.user.sub, id))) {
 			throw new ForbiddenException();
 		}

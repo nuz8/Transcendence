@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { FriendRepository, FriendRequestConflictError, FriendTargetNotFoundError } from './friend.repository';
 import { FriendshipEntity, AcceptedFriend } from './friend.entity';
-import { SendFriendRequestResult, RespondToFriendRequestResult, RemoveFriendResult } from './types';
+import { SendFriendRequestResult, RespondToFriendRequestResult, RemoveFriendResult, FriendshipRelationship } from './types';
 import { UserService } from '../users';
 
 @Injectable()
@@ -95,5 +95,27 @@ export class FriendService {
 
 		const friendship = await transition(friendshipId);
 		return { success: true, friendship };
+	}
+
+
+	async getRelationship(
+		callerId: string,
+		targetId: string
+	): Promise<FriendshipRelationship> {
+		if (callerId === targetId) {
+			return { state: 'self', friendshipId: null };
+		}
+
+		const row = await this.friendRepo.findBetween(callerId, targetId);
+		if (!row || row.status === 'declined') {
+			return { state: 'none', friendshipId: null };
+		}
+		if (row.status === 'accepted') {
+			return { state: 'friends', friendshipId: row.id };
+		}
+		return {
+			state: row.requesterId === callerId ? 'pending_outgoing' : 'pending_incoming',
+			friendshipId: row.id,
+		};
 	}
 }

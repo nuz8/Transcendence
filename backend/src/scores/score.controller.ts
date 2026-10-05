@@ -25,11 +25,13 @@ export class ScoreController {
             page: query.page,
             limit: query.limit,
             items: matches.map((match) => ({
+                sessionId: match.sessionId,
                 gameId: match.gameId,
                 gameName: match.gameName,
                 outcome: match.outcome,
                 value: match.value,
                 achievedAt: match.achievedAt,
+                opponent: match.opponent,
             })),
         };
     }

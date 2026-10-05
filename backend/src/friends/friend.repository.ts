@@ -10,6 +10,7 @@ import {
 	friendships,
 	users,
 } from '../db';
+import { FriendshipRelationship } from './types';
 
 export class FriendRequestConflictError extends Error {
 	constructor(public readonly reason: 'already_pending' | 'already_friends') {
@@ -158,6 +159,11 @@ export class FriendRepository {
 	async areFriends(userA: string, userB: string): Promise<boolean> {
 		const row = await this.findPairRow(userA, userB);
 		return row?.status === 'accepted';
+	}
+
+	async findBetween(userA: string, userB: string): Promise<FriendshipEntity | null> {
+		const row = await this.findPairRow(userA, userB);
+		return row ? this.mapRow(row) : null;
 	}
 
 	private async findPairRow(userA: string, userB: string) {
