@@ -8,13 +8,10 @@ RED = \033[0;31m
 DARK_GREY = \033[1;30m
 RESET = \033[0m
 
-.PHONY: up build down clean fclean restart reset logs ps db-gen db-migrate db-test type-check health-check help
+.PHONY: up build down clean fclean restart reset logs ps db-gen db-migrate db-test type-check health-check help certs certs-clean
 
-up:
+up: certs
 	$(COMPOSE) up --build -d
-
-watch:
-	$(COMPOSE) watch angular-app
 
 build:
 	$(COMPOSE) build
@@ -24,6 +21,13 @@ down:
 
 clean:
 	$(COMPOSE) down -v
+
+certs:
+	@sh scripts/gen-cert.sh nginx/certs localhost
+	@sh scripts/gen-cert.sh backend/certs backend
+
+certs-clean:
+	rm -rf nginx/certs/*.pem backend/certs/*.pem
 
 clean-avatars:
 	find backend/public/avatars/uploads -type f ! -name .gitkeep -delete

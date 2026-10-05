@@ -2,29 +2,9 @@ import { Injectable, signal, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, defer, finalize, firstValueFrom, from, shareReplay, tap, timeout } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { LoginResponse, RefreshResponse, LogoutResponse, LoginData, RegisterData, RegisterResponse } from './auth/auth.models'
 
 const REFRESH_TIMEOUT_MS = 5000;
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  avatar: string;
-}
-
-interface LoginResponse {
-  user: User;
-  access_token: string;
-}
-
-interface RefreshResponse {
-  access_token: string;
-}
-
-interface LogoutResponse {
-  success: boolean;
-  refresh_token_revoked?: boolean;
-}
 
 @Injectable({ providedIn: 'root' })
 export class Auth {
@@ -33,14 +13,18 @@ export class Auth {
   private readonly http = inject(HttpClient);
   private refreshInFlight: Observable<RefreshResponse> | null = null;
 
-  login(email: string, password: string): Observable<LoginResponse> {
+  login(credentials: LoginData): Observable<LoginResponse> {
     return this.http
       .post<LoginResponse>(
         `${environment.apiUrl}/auth/login`,
-        { email, password },
+        credentials,
         { withCredentials: true },
       )
       .pipe(tap((res) => this._accessToken.set(res.access_token)));
+  }
+
+  register(data: RegisterData): Observable<RegisterResponse> {
+    return this.http.post<RegisterResponse>(`${environment.apiUrl}/auth/register`, data);
   }
 
   refresh(): Observable<RefreshResponse> {
@@ -83,6 +67,10 @@ export class Auth {
         },
       )
       .pipe(tap(() => this._accessToken.set(null)));
+  }
+
+  isLoggedIn(): boolean {
+    return !!this._accessToken();
   }
 
   private acquireRefreshLock<T>(task: () => Promise<T>): Promise<T> {

@@ -18,17 +18,13 @@ async function bootstrap() {
   await seedAchievements(db); // Seed achievements catalog data into the achievements table
 
   const httpsOptions = {
-    key: readFileSync('./secrets/key.pem'),
-    cert: readFileSync('./secrets/cert.pem'),
+    key: readFileSync('./certs/key.pem'),
+    cert: readFileSync('./certs/cert.pem'),
   };
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     httpsOptions,
   });
   const configService = app.get(ConfigService);
-  app.enableCors({
-    origin: configService.get<string>('FRONTEND_URL', 'http://localhost:4200'),
-    credentials: true,
-  });
   app.use(cookieParser());
 
   const config = new DocumentBuilder()

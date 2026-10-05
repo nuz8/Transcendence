@@ -32,6 +32,6 @@ export const REFRESH_TOKEN_COOKIE = {
 		httpOnly: true,
 		secure: true,
 		sameSite: 'strict',
-		path: '/auth',
+		path: '/api/auth',
 	} as const,
 } as const;

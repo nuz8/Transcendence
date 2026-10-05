@@ -28,7 +28,7 @@ describe('authInterceptor', () => {
   });
 
   function login() {
-    auth.login('user@example.com', 'password123').subscribe();
+    auth.login({email: 'user@example.com', password: 'password123'}).subscribe();
     httpMock.expectOne(`${environment.apiUrl}/auth/login`).flush({
       user: { id: '1', username: 'u', email: 'user@example.com', avatar: '' },
       access_token: 'fake-token',

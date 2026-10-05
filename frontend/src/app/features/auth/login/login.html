@@ -1,0 +1,33 @@
+<form (submit)="onSubmit($event)" novalidate>
+  @if (errorMessage()) {
+    <p class="banner error-banner">{{ errorMessage() }}</p>
+  }
+
+  <div>
+    <label>
+      Email
+      <input type="email" autocomplete="email" [formField]="loginForm.email" />
+    </label>
+    <app-field-errors
+      [errors]="loginForm.email().errors()"
+      [show]="loginForm.email().invalid() && loginForm.email().touched()"
+    />
+  </div>
+
+  <div>
+    <label>
+      Password
+      <input type="password" autocomplete="current-password" [formField]="loginForm.password" />
+    </label>
+    <app-field-errors
+      [errors]="loginForm.password().errors()"
+      [show]="loginForm.password().invalid() && loginForm.password().touched()"
+    />
+  </div>
+
+  <button type="submit" [disabled]="loginForm().invalid() || submitting()">
+    {{ submitting() ? 'Logging in…' : 'Log in' }}
+  </button>
+
+  <p class="switch-auth">Don't have an account yet? <a routerLink="/register">Register</a></p>
+</form>

@@ -1,8 +1,10 @@
 node_modules
 .env
 dist
-/backend/secrets/*
-!/backend/secrets/.gitkeep
+/backend/certs/*
+!/backend/certs/.gitkeep
+/nginx/certs/*
+!/nginx/certs/.gitkeep
 .DS_Store
 /backend/public/avatars/uploads/*
 !/backend/public/avatars/uploads/.gitkeep
