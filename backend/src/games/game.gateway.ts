@@ -1,9 +1,6 @@
-import { JwtService } from '@nestjs/jwt';
 import { ConnectedSocket, MessageBody, SubscribeMessage } from '@nestjs/websockets';
 import { randomUUID } from 'node:crypto';
-import { IncomingMessage } from 'node:http';
 import { WebSocket } from 'ws';
-import { DenyList } from '../auth/denyList';
 import { ScoreEntity, ScoreService } from '../scores';
 import { MatchService } from './match/match.service';
 import { POWER_UPS, type MatchState, type Player, type MatchMode, type PowerUp } from './match/match.types';
@@ -12,6 +9,7 @@ import { GamificationService } from '../gamification';
 import { PresenceService } from '../presence/presence.service';
 import { GameSettingsService } from './settings/game-settings.service';
 import { DEFAULT_GAME_SETTINGS } from './settings/game-settings.constants';
+import { SocketAuthenticator } from '../auth/socketAuthenticator';
 
 const RECONNECT_TIME_MS = 30_000;
 const MATCH_LEVEL_RANGE = 2;
@@ -39,7 +37,6 @@ export type Session = {
 
 export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(GameGateway.name);
-    private readonly users = new Map<WebSocket, string>();
     private readonly sessions = new Map<string, Session>();
     private readonly sessionBySocket = new Map<WebSocket, string>();
     private readonly waiting = new Map<string, Waiter[]>();
@@ -48,8 +45,7 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
     
     constructor(
         protected readonly matchService: MatchService,
-        private readonly jwtService: JwtService,
-        private readonly denyList: DenyList,
+        protected readonly socketAuthenticator: SocketAuthenticator,
         private readonly scoreService: ScoreService,
         private readonly gamificationService: GamificationService,
         private readonly gameSettingsService: GameSettingsService,
@@ -70,9 +66,8 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
             this.endSession(sessionId, session);
     }
 
-    handleConnection(client: WebSocket, request: IncomingMessage): void {
-        client.pause();
-        void this.authenticate(client, request);
+    handleConnection(client: WebSocket): void {
+        this.socketAuthenticator.begin(client);
     }
 
     handleDisconnect(client: WebSocket): void {
@@ -97,21 +92,25 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
             this.sessionBySocket.delete(client);
             this.sessions.delete(sessionId);
         }
-        const userId = this.users.get(client);
-        this.users.delete(client);
+        const userId = this.socketAuthenticator.release(client);
         if (userId)
             this.presenceService.disconnect(userId, client);
     }
 
+    @SubscribeMessage('auth')
+    async auth(@ConnectedSocket() client: WebSocket, @MessageBody() body: unknown): Promise<void> {
+        await this.socketAuthenticator.authenticate(client, body, (userId) => this.presenceService.connect(userId, client));
+    }
+
     @SubscribeMessage('create')
     async create(@ConnectedSocket() client: WebSocket): Promise<void> {
-        const userid = this.users.get(client);
+        const userid = this.socketAuthenticator.userOf(client);
         if (!userid)
             return this.send(client, 'error', { message: 'not authenticated' });
 
         const { target, mode, powerUps } = await this.settingsFor(userid);
 
-        if (!this.users.has(client))
+        if (!this.socketAuthenticator.userOf(client))
             return ;
         if (this.sessionBySocket.has(client))
             return this.send(client, 'error', { message: 'already in a session' });
@@ -134,14 +133,14 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
 
     @SubscribeMessage('queue')
     async queue(@ConnectedSocket() client: WebSocket): Promise<void> {
-        const userId = this.users.get(client);
+        const userId = this.socketAuthenticator.userOf(client);
             if (!userId)
                 return this.send(client, 'error', { message: 'not authenticated' });
         
         const [settings, level] = await Promise.all([this.settingsFor(userId), this.levelFor(userId)]);
         const key = `${settings.mode}:${settings.target}:${settings.powerUps}`;
 
-        if (!this.users.has(client))
+        if (!this.socketAuthenticator.userOf(client))
             return ;
         if (this.sessionBySocket.has(client))
             return this.send(client, 'error', { message: 'already in a session' });
@@ -187,13 +186,13 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
 
     @SubscribeMessage('join')
     join(@ConnectedSocket() client: WebSocket, @MessageBody() sessionId: unknown): void {
-        if (!this.users.has(client))
+        if (!this.socketAuthenticator.userOf(client))
             return this.send(client, 'error', { message: 'not authenticated' });
         const session = typeof sessionId === 'string' ? this.sessions.get(sessionId) : undefined;
         if (!session)
             return this.send(client, 'error', { message: 'unknown session' });
         
-        const userId = this.users.get(client);
+        const userId = this.socketAuthenticator.userOf(client);
         const seat = [session.a, session.b].find(s => s?.userId === userId);
         if (!seat)
             return this.send(client, 'error', { message: 'not your session' });
@@ -357,28 +356,6 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
             clearTimeout(session.roundTimer);
         this.sessions.delete(sessionId);
     }
-
-    private async authenticate(client: WebSocket, request: IncomingMessage): Promise<void> {
-        const [type, token] = request.headers.authorization?.split(' ') ?? [];
-        if (type !== 'Bearer' || !token)
-            return client.close(4401, 'unauthorized');
-
-        try {
-            const payload = await this.jwtService.verifyAsync<{sub: string; type: string; jti: string;}>(token);
-            
-            if (payload.type !== 'access')
-                return client.close(4401, 'unauthorized');
-            if (this.denyList.isRevoked(payload.jti))
-                return client.close(4401, 'unauthorized');
-            if (client.readyState !== WebSocket.OPEN) return;
-
-            this.users.set(client, payload.sub);
-            this.presenceService.connect(payload.sub, client);
-            client.resume();
-            } catch {
-                client.close(4401, 'unauthorized');
-            }
-        }
 
     protected sideOf(session: Session, client: WebSocket): Player | undefined {
         if (session.a.client === client)

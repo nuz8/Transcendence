@@ -47,9 +47,7 @@ describe('Rps (e2e)', () => {
     }
 
     async function connect(token: string): Promise<Conn> {
-        const socket = new WebSocket(`ws://127.0.0.1:${port}/games/rps`, {
-            headers: { Authorization: `Bearer ${token}` },
-        });
+        const socket = new WebSocket(`ws://127.0.0.1:${port}/games/rps`);
         open.push(socket);
 
         const queue: Message[] = [];
@@ -84,6 +82,8 @@ describe('Rps (e2e)', () => {
                 return null;
             }
         };
+        socket.send(JSON.stringify({ event: 'auth', data: { token } }));
+        await next('authenticated');
 
         return { socket, next, maybe, quiet, send: (event, data) => socket.send(JSON.stringify({ event, data })) };
     }

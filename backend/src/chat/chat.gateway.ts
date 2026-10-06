@@ -1,50 +1,47 @@
-import { JwtService } from '@nestjs/jwt';
 import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
-import { IncomingMessage } from 'node:http';
 import { WebSocket } from 'ws';
 import { isUUID } from 'class-validator';
 import { Logger } from '@nestjs/common';
-import { DenyList } from '../auth/denyList';
 import { ChatService } from './chat.service';
-import { SocketAuthRegistry } from '../auth/socketAuthRegistry';
+import { SocketAuthenticator } from '../auth/socketAuthenticator';
 import { PresenceService, type PresenceChange } from '../presence/presence.service';
 import { FriendService } from '../friends';
+
 
 @WebSocketGateway({ path: '/chat' })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	private readonly logger = new Logger(ChatGateway.name);
-	private readonly users = new Map<WebSocket, string>();
 	private readonly sockets = new Map<string, Set<WebSocket>>();
 
 	constructor(
 		private readonly chatService: ChatService,
-		private readonly jwtService: JwtService,
-		private readonly denyList: DenyList,
-		private readonly socketAuthRegistry: SocketAuthRegistry,
+		private readonly socketAuthenticator: SocketAuthenticator,
 		private readonly presenceService: PresenceService,
 		private readonly friendService: FriendService,
 	) {
 		this.presenceService.onChange((change) => this.notifyFriends(change));
 	}
 
-	handleConnection(client: WebSocket, request: IncomingMessage): void {
-		client.pause();
-		void this.authenticate(client, request);
+	handleConnection(client: WebSocket): void {
+		this.socketAuthenticator.begin(client);
 	}
 
 	handleDisconnect(client: WebSocket): void {
-		this.socketAuthRegistry.unregister(client);
-		const userId = this.users.get(client);
+		const userId = this.socketAuthenticator.release(client);
 		if (!userId) return;
 
-		this.users.delete(client);
 		this.removeSocket(userId, client);
 		this.presenceService.disconnect(userId, client);
 	}
 
+	@SubscribeMessage('auth')
+	async auth(@ConnectedSocket() client: WebSocket, @MessageBody() body: unknown): Promise<void> {
+		await this.socketAuthenticator.authenticate(client, body, (userId) => this.onFirstAuth(client, userId));
+	}
+
 	@SubscribeMessage('send')
 	async send(@ConnectedSocket() client: WebSocket, @MessageBody() body: unknown): Promise<void> {
-		const senderId = this.users.get(client);
+		const senderId = this.socketAuthenticator.userOf(client);
 		if (!senderId)
 			return this.emit(client, 'error', { message: 'not authenticated' });
 
@@ -73,30 +70,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		return { to, content: trimmed };
 	}
 
-	private async authenticate(client: WebSocket, request: IncomingMessage): Promise<void> {
-		const [type, token] = request.headers.authorization?.split(' ') ?? [];
-		if (type !== 'Bearer' || !token)
-			return client.close(4401, 'unauthorized');
-
-		try {
-			const payload = await this.jwtService.verifyAsync<{ sub: string; type: string; jti: string; exp: number }>(token);
-
-			if (payload.type !== 'access')
-				return client.close(4401, 'unauthorized');
-			if (this.denyList.isRevoked(payload.jti))
-				return client.close(4401, 'unauthorized');
-			if (client.readyState !== WebSocket.OPEN) 
-				return;
-
-			this.users.set(client, payload.sub);
-			this.addSocket(payload.sub, client);
-			this.socketAuthRegistry.register(client, payload.jti, payload.exp);
-			this.presenceService.connect(payload.sub, client);
-			client.resume();
-			await this.sendPresenceSnapshot(payload.sub, client);
-		} catch {
-			client.close(4401, 'unauthorized');
-		}
+	private async onFirstAuth(client: WebSocket, userId: string): Promise<void> {
+		this.addSocket(userId, client);
+		this.presenceService.connect(userId, client);
+		await this.sendPresenceSnapshot(userId, client);
 	}
 
 	private addSocket(userId: string, client: WebSocket): void {

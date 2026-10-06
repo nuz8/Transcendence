@@ -1,8 +1,6 @@
 import { ConnectedSocket, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, MessageBody, OnGatewayConnection } from '@nestjs/websockets';
 import { WebSocket } from 'ws';
 import { RpsService } from './rps.service';
-import { JwtService } from '@nestjs/jwt';
-import { DenyList } from '../../auth/denyList';
 import { ScoreService } from '../../scores';
 import { RPS_GAME_ID } from './rps.constants';
 import { GameGateway, type Session } from '../game.gateway';
@@ -12,6 +10,7 @@ import type { Move } from './rps.types';
 import type { Player } from '../match/match.types';
 import { PresenceService } from '../../presence/presence.service';
 import { GameSettingsService } from '../settings/game-settings.service';
+import { SocketAuthenticator } from '../../auth/socketAuthenticator';
 
 const ROUND_TIME_LIMIT = 60_000;
 @WebSocketGateway({ path: '/games/rps' })
@@ -22,14 +21,13 @@ export class RpsGateway extends GameGateway implements OnGatewayConnection, OnGa
     constructor(
         private readonly rpsService: RpsService,
         matchService: MatchService,
-        jwtService: JwtService,
-        denyList: DenyList,
+        socketAuthenticator: SocketAuthenticator,
         scoreService: ScoreService,
         gamificationService: GamificationService,
         gameSettingsService: GameSettingsService,
         presenceService: PresenceService,
     ) {
-        super(matchService, jwtService, denyList, scoreService, gamificationService, gameSettingsService, presenceService);
+        super(matchService, socketAuthenticator, scoreService, gamificationService, gameSettingsService, presenceService);
     }
 
     @SubscribeMessage('move')

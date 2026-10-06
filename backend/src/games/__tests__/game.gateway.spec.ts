@@ -6,8 +6,9 @@ import { MatchService } from '../match/match.service';
 import { GameGateway, type Session } from '../game.gateway';
 import { GameSettingsService } from '../settings/game-settings.service';
 import { PresenceService } from '../../presence/presence.service';
+import { SocketAuthenticator } from '../../auth/socketAuthenticator';
+import { SocketAuthRegistry, SOCKET_SWEEP_INTERVAL_MS } from '../../auth/socketAuthRegistry';
 import type { WebSocket } from 'ws';
-import type { IncomingMessage } from 'node:http';
 
 class TestGateway extends GameGateway {
   protected readonly gameId = 'test-game';
@@ -15,8 +16,7 @@ class TestGateway extends GameGateway {
 
   constructor(
     matchService: MatchService,
-    jwtService: JwtService,
-    denyList: DenyList,
+    socketAuthenticator: SocketAuthenticator,
     scoreService: ScoreService,
     gamificationService: GamificationService,
     presenceService: PresenceService,
@@ -24,8 +24,7 @@ class TestGateway extends GameGateway {
   ) {
     super(
       matchService,
-      jwtService,
-      denyList,
+      socketAuthenticator,
       scoreService,
       gamificationService,
       gameSettingsService,
@@ -59,10 +58,9 @@ describe('GameGateway.finish', () => {
     matchService = { matchOutcome: jest.fn() };
     scoreService = { recordMatch: jest.fn().mockResolvedValue(undefined) };
     gamificationService = { processPvpWin: jest.fn().mockResolvedValue([]) };
-      gateway = new TestGateway(
+    gateway = new TestGateway(
       matchService as unknown as MatchService,
-      {} as JwtService,
-      {} as DenyList,
+      {} as SocketAuthenticator,
       scoreService as unknown as ScoreService,
       gamificationService as unknown as GamificationService,
       new PresenceService(),
@@ -107,29 +105,25 @@ describe('GameGateway.finish', () => {
   });
 });
 
-describe('GameGateway - presence tracking', () => {
+describe('GameGateway - authentication', () => {
   let jwtService: JwtService;
-  let denyList: DenyList;
+  let socketAuthRegistry: SocketAuthRegistry;
   let presenceService: PresenceService;
   let gateway: TestGateway;
 
   function fakeSocket(): WebSocket {
-    return { pause: jest.fn(), resume: jest.fn(), close: jest.fn(), readyState: 1 } as unknown as WebSocket;
-  }
-
-  function fakeRequest(token: string): IncomingMessage {
-    return { headers: { authorization: `Bearer ${token}` } } as unknown as IncomingMessage;
+    return { close: jest.fn(), send: jest.fn(), readyState: 1 } as unknown as WebSocket;
   }
 
   beforeEach(() => {
     jest.useFakeTimers();
     jwtService = { verifyAsync: jest.fn() } as unknown as JwtService;
-    denyList = new DenyList();
+    const denyList = new DenyList();
+    socketAuthRegistry = new SocketAuthRegistry(denyList);
     presenceService = new PresenceService();
     gateway = new TestGateway(
       {} as MatchService,
-      jwtService,
-      denyList,
+      new SocketAuthenticator(jwtService, denyList, socketAuthRegistry),
       {} as ScoreService,
       {} as GamificationService,
       presenceService,
@@ -137,45 +131,43 @@ describe('GameGateway - presence tracking', () => {
   });
 
   afterEach(() => {
+    socketAuthRegistry.onModuleDestroy();
     jest.useRealTimers();
   });
 
-  it('marks the user online once authenticated', async () => {
-    const client = fakeSocket();
-    (jwtService.verifyAsync as jest.Mock).mockResolvedValue({ sub: 'user-1', type: 'access', jti: 'jti-1' });
+  async function connectUser(client: WebSocket, userId: string, expInSeconds = 3600): Promise<void> {
+    (jwtService.verifyAsync as jest.Mock).mockResolvedValueOnce({
+      sub: userId,
+      type: 'access',
+      jti: `jti-${userId}`,
+      exp: Math.floor(Date.now() / 1000) + expInSeconds,
+    });
+    gateway.handleConnection(client);
+    await gateway.auth(client, { token: `token-${userId}` });
+  }
 
-    gateway.handleConnection(client, fakeRequest('token'));
-    await jest.advanceTimersByTimeAsync(0);
+  it('marks the user online once authenticated', async () => {
+    await connectUser(fakeSocket(), 'user-1');
 
     expect(presenceService.isOnline('user-1')).toBe(true);
   });
 
   it('marks the user offline once disconnected', async () => {
     const client = fakeSocket();
-    (jwtService.verifyAsync as jest.Mock).mockResolvedValue({ sub: 'user-1', type: 'access', jti: 'jti-1' });
-
-    gateway.handleConnection(client, fakeRequest('token'));
-    await jest.advanceTimersByTimeAsync(0);
+    await connectUser(client, 'user-1');
 
     gateway.handleDisconnect(client);
 
     expect(presenceService.isOnline('user-1')).toBe(false);
   });
 
-  it('does not register a socket that closed while verifyAsync was still pending', async () => {
+  it('closes a game socket once its access token has expired', async () => {
     const client = fakeSocket();
-    let resolveVerify!: (payload: unknown) => void;
-    (jwtService.verifyAsync as jest.Mock).mockImplementation(
-      () => new Promise((resolve) => { resolveVerify = resolve; }),
-    );
+    await connectUser(client, 'user-1', 1);
 
-    gateway.handleConnection(client, fakeRequest('token'));
-    (client as unknown as { readyState: number }).readyState = 3; // WebSocket.CLOSED
-    resolveVerify({ sub: 'user-1', type: 'access', jti: 'jti-1' });
-    await jest.advanceTimersByTimeAsync(0);
+    jest.advanceTimersByTime(SOCKET_SWEEP_INTERVAL_MS);
 
-    expect(presenceService.isOnline('user-1')).toBe(false);
-    expect(client.resume).not.toHaveBeenCalled();
+    expect(client.close).toHaveBeenCalledWith(4401, 'unauthorized');
   });
 
   describe('GameGateway - matchmaking', () => {
@@ -184,6 +176,7 @@ describe('GameGateway - presence tracking', () => {
     type Settings = { target: number; mode: 'fixed-target-score' | 'fixed-rounds'; powerUps: boolean };
 
     let gateway: TestGateway;
+    let matchmakingRegistry: SocketAuthRegistry;
     let levels: Record<string, number>;
     let settings: Record<string, Settings>;
 
@@ -191,10 +184,17 @@ describe('GameGateway - presence tracking', () => {
       jest.useFakeTimers();
       levels = {};
       settings = {};
+      const denyList = new DenyList();
+      matchmakingRegistry = new SocketAuthRegistry(denyList);
+      const verifyAsync = jest.fn((token: string) => Promise.resolve({
+        sub: token,
+        type: 'access',
+        jti: token,
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      }));
       gateway = new TestGateway(
         new MatchService(),
-        { verifyAsync: jest.fn((token: string) => Promise.resolve({ sub: token, type: 'access', jti: token })) } as unknown as JwtService,
-        new DenyList(),
+        new SocketAuthenticator({ verifyAsync } as unknown as JwtService, denyList, matchmakingRegistry),
         {} as ScoreService,
         { levelOf: jest.fn((userId: string) => Promise.resolve(levels[userId] ?? 0)) } as unknown as GamificationService,
         new PresenceService(),
@@ -205,6 +205,7 @@ describe('GameGateway - presence tracking', () => {
 
     afterEach(() => {
       gateway.onModuleDestroy();
+      matchmakingRegistry.onModuleDestroy();
       jest.useRealTimers();
     });
 
@@ -219,8 +220,8 @@ describe('GameGateway - presence tracking', () => {
         send: (raw: string) => sent.push(JSON.parse(raw) as Sent),
       } as unknown as WebSocket;
 
-      gateway.handleConnection(socket, { headers: { authorization: `Bearer ${userId}` } } as IncomingMessage);
-      await jest.advanceTimersByTimeAsync(0);
+      gateway.handleConnection(socket);
+      await gateway.auth(socket, { token: userId });
       await gateway.queue(socket);
       return { socket, sent };
     }

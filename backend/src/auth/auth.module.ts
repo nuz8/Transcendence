@@ -10,6 +10,7 @@ import { UserModule } from '../users';
 import { DenyList } from './denyList';
 import { AllowList } from './allowList';
 import { SocketAuthRegistry } from './socketAuthRegistry';
+import { SocketAuthenticator } from './socketAuthenticator';
 
 @Module({
   imports: [
@@ -29,9 +30,10 @@ import { SocketAuthRegistry } from './socketAuthRegistry';
     DenyList,
     AllowList,
     SocketAuthRegistry,
+    SocketAuthenticator,
     AuthGuard,
     AuthService,
   ],
-  exports: [AuthService, AuthGuard, DenyList, AllowList, SocketAuthRegistry],
+  exports: [AuthService, AuthGuard, DenyList, AllowList, SocketAuthRegistry, SocketAuthenticator],
 })
 export class AuthModule {}
