@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { MOVES, type MatchState, type PlayedRound, type Move, type Outcome, type Player, type RoundResult } from './rps.types';
 import { randomInt } from 'node:crypto';
 import { MatchService } from '../match/match.service';
+import type { PowerUp } from '../match/match.types';
 
 const BEATS: Record<Move, Move> = {
     rock: 'scissors',
@@ -44,9 +45,9 @@ export class RpsService {
         return MOVES.find((m) => m === s || m[0] === s) ?? null; 
     }
 
-    playRound(state: MatchState, moveA: Move, moveB: Move): PlayedRound {
+    playRound(state: MatchState, moveA: Move, moveB: Move, played: Partial<Record<Player, PowerUp>> = {}): PlayedRound {
         const round = this.play(moveA, moveB);
 
-        return { round, state: this.matchService.recordRound(state, round.winner) };
+        return { round, state: this.matchService.recordRound(state, round.winner, played) };
     }
 }

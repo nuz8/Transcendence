@@ -9,11 +9,12 @@ import {
 	index,
 	check,
 	primaryKey,
+	boolean,
 } from "drizzle-orm/pg-core";
 
 import { relations, sql } from "drizzle-orm";
 import { MATCH_MODES } from "../games/match/match.types";
-import { BEST_OF_OPTIONS } from "../games/settings/game-settings.constants";
+import { TARGET_OPTIONS, GAME_THEMES } from "../games/settings/game-settings.constants";
 
 export const outcomeEnum = pgEnum("outcome", [
 	"win",
@@ -24,19 +25,23 @@ export const outcomeEnum = pgEnum("outcome", [
 
 export const matchModeEnum = pgEnum("match_mode", MATCH_MODES);
 
+export const gameThemeEnum = pgEnum("game_theme", GAME_THEMES);
+
 export const  gameSettings = pgTable(
 	"game_settings",
 	{
 		userId: uuid("user_id").notNull().references(() => users.id),
 		gameId: uuid("game_id").notNull().references(() => games.id),
-		bestOf: integer("best_of").notNull(),
-		mode: matchModeEnum("mode").notNull().default("first-to"),
+		target: integer("target").notNull(),
+		mode: matchModeEnum("mode").notNull().default("fixed-target-score"),
+		theme: gameThemeEnum("theme").notNull().default("default"),
+		powerUps: boolean("power_ups").notNull().default(false),
 	},
 	(table) => [
 		primaryKey({ columns: [table.userId, table.gameId] }),
 		check(
-			"game_settings_best_of_allowed",
-			sql`${table.bestOf} IN (${sql.raw(BEST_OF_OPTIONS.join(", "))})`,
+			"game_settings_target_allowed",
+			sql`${table.target} IN (${sql.raw(TARGET_OPTIONS.join(", "))})`,
 		),
 	],
 );

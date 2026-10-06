@@ -64,6 +64,20 @@
       "when": 1790710196242,
       "tag": "0008_add_achievements_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791026136259,
+      "tag": "0009_any_match_length",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791040826229,
+      "tag": "0010_add_theme_and_powerups",
+      "breakpoints": true
     }
   ]
 }

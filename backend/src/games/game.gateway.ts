@@ -4,14 +4,23 @@ import { randomUUID } from 'node:crypto';
 import { IncomingMessage } from 'node:http';
 import { WebSocket } from 'ws';
 import { DenyList } from '../auth/denyList';
-import { ScoreEntity, ScoreRepository, type ScoreWithXp, XP_BY_OUTCOME } from '../scores';
+import { ScoreEntity, ScoreService } from '../scores';
 import { MatchService } from './match/match.service';
-import type { MatchState, Player } from './match/match.types';
-import { Logger, OnModuleDestroy } from '@nestjs/common';
+import { POWER_UPS, type MatchState, type Player, type MatchMode, type PowerUp } from './match/match.types';
+import { Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { GamificationService } from '../gamification';
 import { PresenceService } from '../presence/presence.service';
+import { GameSettingsService } from './settings/game-settings.service';
+import { DEFAULT_GAME_SETTINGS } from './settings/game-settings.constants';
 
 const RECONNECT_TIME_MS = 30_000;
+const MATCH_LEVEL_RANGE = 2;
+const WIDEN_AFTER_MS = 15_000;
+const QUEUE_SWEEP_INTERVAL_MS = 5_000;
+
+export type Queued = { client: WebSocket; userId: string };
+type MatchSettings = { target: number; mode: MatchMode; powerUps: boolean };
+type Waiter = Queued & { settings: MatchSettings, level: number, since: number };
 
 export type Side = {
     userId: string;
@@ -23,32 +32,40 @@ export type Session = {
     state: MatchState;
     a: Side;
     b: Side | null;
-    roundsPlayed: number;
     pending: Partial<Record<Player, unknown>>;
     roundTimer: NodeJS.Timeout | null;
+    pendingPowerUps: Partial<Record<Player, PowerUp>>;
 };
 
-export abstract class GameGateway implements OnModuleDestroy {
+export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(GameGateway.name);
     private readonly users = new Map<WebSocket, string>();
     private readonly sessions = new Map<string, Session>();
     private readonly sessionBySocket = new Map<WebSocket, string>();
-    private waiting: { client: WebSocket; userId: string } | null = null;
+    private readonly waiting = new Map<string, Waiter[]>();
+    private queueSweep: NodeJS.Timeout | null = null;
+
     
     constructor(
         protected readonly matchService: MatchService,
         private readonly jwtService: JwtService,
         private readonly denyList: DenyList,
-        private readonly scoreRepository: ScoreRepository,
+        private readonly scoreService: ScoreService,
         private readonly gamificationService: GamificationService,
+        private readonly gameSettingsService: GameSettingsService,
         private readonly presenceService: PresenceService,
     ) {}
 
     protected abstract readonly gameId: string;
-    protected abstract readonly bestOf: number;
     protected abstract readonly roundTimeLimit: number;
 
+    onModuleInit(): void {
+        this.queueSweep = setInterval(() => this.sweepQueue(), QUEUE_SWEEP_INTERVAL_MS);
+    }
+
     onModuleDestroy(): void {
+        if (this.queueSweep)
+            clearInterval(this.queueSweep);
         for (const [sessionId, session] of this.sessions)
             this.endSession(sessionId, session);
     }
@@ -59,8 +76,11 @@ export abstract class GameGateway implements OnModuleDestroy {
     }
 
     handleDisconnect(client: WebSocket): void {
-        if (this.waiting?.client === client)
-            this.waiting = null;
+        for (const [ key, slot] of this.waiting){
+            const waiter = slot.find((w) => w.client === client);
+            if (waiter)
+                this.removeWaiter(key, waiter);
+        }
 
         const sessionId = this.sessionBySocket.get(client);
         const session = sessionId ? this.sessions.get(sessionId) : undefined;
@@ -84,67 +104,83 @@ export abstract class GameGateway implements OnModuleDestroy {
     }
 
     @SubscribeMessage('create')
-    create(@ConnectedSocket() client: WebSocket): void {
-        if (!this.users.has(client))
+    async create(@ConnectedSocket() client: WebSocket): Promise<void> {
+        const userid = this.users.get(client);
+        if (!userid)
             return this.send(client, 'error', { message: 'not authenticated' });
+
+        const { target, mode, powerUps } = await this.settingsFor(userid);
+
+        if (!this.users.has(client))
+            return ;
         if (this.sessionBySocket.has(client))
             return this.send(client, 'error', { message: 'already in a session' });
 
-        if (this.waiting?.client === client)
+        if (this.isWaiting(client))
             return this.send(client, 'error', { message: 'already in queue' });
 
         const sessionId = randomUUID();
         this.sessions.set(sessionId, {
-            state: this.matchService.createMatch(this.bestOf),
-            a: { userId: this.users.get(client)!, client: null, dcTimer: null },
+            state: this.matchService.createMatch(target, mode, powerUps),
+            a: { userId: userid, client: null, dcTimer: null },
             b: null,
-            roundsPlayed: 0,
             pending: {},
             roundTimer: null,
+            pendingPowerUps: {},
         });
         this.sessionBySocket.set(client, sessionId);
         this.send(client, 'created', { sessionId });
     }
 
     @SubscribeMessage('queue')
-    queue(@ConnectedSocket() client: WebSocket): void {
+    async queue(@ConnectedSocket() client: WebSocket): Promise<void> {
+        const userId = this.users.get(client);
+            if (!userId)
+                return this.send(client, 'error', { message: 'not authenticated' });
+        
+        const [settings, level] = await Promise.all([this.settingsFor(userId), this.levelFor(userId)]);
+        const key = `${settings.mode}:${settings.target}:${settings.powerUps}`;
+
         if (!this.users.has(client))
-            return this.send(client, 'error', { message: 'not authenticated' });
+            return ;
         if (this.sessionBySocket.has(client))
             return this.send(client, 'error', { message: 'already in a session' });
+        if ( this.isWaiting(client, userId))
+            return this.send(client, 'error', { message: 'already in queue' });
 
-        const userId = this.users.get(client)!;
-        const opponent = this.waiting;
+        const slot = this.waiting.get(key) ?? [];
+        const opponent = this.closestWaiter(slot, level, MATCH_LEVEL_RANGE);
         if (!opponent) {
-            this.waiting = { client, userId };
+            slot.push({ client, userId, settings, level, since: Date.now() });
+            this.waiting.set(key, slot);
             return this.send(client, 'waiting', { message: 'waiting for an opponent' });
         }
-        if (opponent.client === client)
-            return this.send(client, 'error', { message: 'already in queue' });
-        if (opponent.userId === userId)
-            return this.send(client, 'error', { message: 'already in queue' });
-
-        this.waiting = null;
-        
+        this.removeWaiter(key, opponent);
+        this.startPairedMatch(settings, opponent, { client, userId });
+    }
+    
+    private startPairedMatch(settings: MatchSettings, first: Queued, second: Queued): void {
         const sessionId = randomUUID();
         const session: Session = {
-            state: this.matchService.createMatch(this.bestOf),
-            a: { userId: opponent.userId, client: opponent.client, dcTimer: null },
-            b: { userId, client, dcTimer: null },
-            roundsPlayed: 0,
+            state: this.matchService.createMatch(settings.target, settings.mode, settings.powerUps),
+            a: { userId: first.userId, client: first.client, dcTimer: null },
+            b: { userId: second.userId, client: second.client, dcTimer: null },
             pending: {},
             roundTimer: null,
+            pendingPowerUps: {},
         };
 
         this.sessions.set(sessionId, session);
-        this.sessionBySocket.set(opponent.client, sessionId);
-        this.sessionBySocket.set(client, sessionId);
+        this.sessionBySocket.set(first.client, sessionId);
+        this.sessionBySocket.set(second.client, sessionId);
         this.startRoundTimer(sessionId, session);
 
-        for (const side of this.sides(session)) {
-            this.send(side === 'a' ? opponent.client : client, 'matched', {
+        for (const player of [first, second]) {
+            this.send(player.client, 'matched', {
                 sessionId,
-                targetRounds: session.state.targetRounds,
+                mode: session.state.mode,
+                target: session.state.target,
+                powerUps: session.state.powerUps,
             });
         }
     }
@@ -174,7 +210,31 @@ export abstract class GameGateway implements OnModuleDestroy {
         const other = side === 'a' ? session.b : session.a;
         if (other?.client)
             this.send(other.client, 'opponent_reconnected', {});
-        this.send(client, 'joined', { targetRounds: session.state.targetRounds, ...this.viewFor(side, session.state), roundsPlayed: session.roundsPlayed });
+        this.send(client, 'joined', { mode: session.state.mode, target: session.state.target, powerUps: session.state.powerUps, powerUpsLeft: session.state.powerUpsLeft[side], ...this.viewFor(side, session.state), roundsPlayed: session.state.roundsPlayed });
+    }
+
+    @SubscribeMessage('power-up')
+    powerUp(@ConnectedSocket() client: WebSocket, @MessageBody() body: unknown): void {
+        const session = this.currentSession(client);
+        if (!session)
+            return this.send(client, 'error', { message: 'not in a session' });
+        if (!session.state.powerUps)
+            return this.send(client, 'error', { message: 'power-ups not enabled' });
+
+        const powerUp = POWER_UPS.find((name) => name === body);
+        if (!powerUp)
+            return this.send(client, 'error', { message: 'unknown power-up' });
+
+        const side = this.sideOf(session, client)!;
+        if (session.pending[side] !== undefined)
+            return this.send(client, 'error', { message: 'already used a move' });
+        if (session.pendingPowerUps[side])
+            return this.send(client, 'error', { message: 'already used a power-up' });
+        if (!session.state.powerUpsLeft[side].includes(powerUp))
+            return this.send(client, 'error', { message: 'power-up not available' });
+
+        session.pendingPowerUps[side] = powerUp;
+        this.send(client, 'powerup_accepted', { powerUp });
     }
     
     @SubscribeMessage('quit')
@@ -186,39 +246,48 @@ export abstract class GameGateway implements OnModuleDestroy {
         this.finish(session, this.sessionIdOf(client)!);
     }
 
+    private async settingsFor(userId: string): Promise<MatchSettings> {
+        const defaults = DEFAULT_GAME_SETTINGS;
+
+        try {
+            const settings = await this.gameSettingsService.settingsFor(userId, this.gameId);
+            return settings ? { target: settings.target, mode: settings.mode, powerUps: settings.powerUps } : defaults;
+        } catch (error) {
+            this.logger.error(`Failed to read game settings for user ${userId}`, error);
+            return defaults;
+        }
+    }
+
     protected finish(session: Session, sessionId: string): void {
         const { state } = session;
 
         this.endSession(sessionId, session);
 
-        const results: ScoreWithXp[] = [];
+        const results: ScoreEntity[] = [];
         for (const side of this.sides(session)) {
             const seat = side === 'a' ? session.a : session.b!;
             const other = side === 'a' ? session.b : session.a;
             const outcome = this.matchService.matchOutcome(side, state);
             const view = this.viewFor(side, state);
 
-            results.push({
-                score: new ScoreEntity({
-                    sessionId,
-                    userId: seat.userId,
-                    opponentId: other?.userId ?? null,
-                    gameId: this.gameId,
-                    value: view.ownScore,
-                    outcome,
-                    achievedAt: new Date(),
-                }),
-                xp: session.b ? XP_BY_OUTCOME[outcome] : 0,
-            });
+            results.push(new ScoreEntity({
+                sessionId,
+                userId: seat.userId,
+                opponentId: other?.userId ?? null,
+                gameId: this.gameId,
+                value: view.ownScore,
+                outcome,
+                achievedAt: new Date(),
+            }));
             if (seat.client)
                 this.send(seat.client, 'over', { outcome, ...view });
         }
 
         const pvpWinners = results
-            .filter(({ score }) => score.opponentId !== null && score.outcome === 'win')
-            .map(({ score }) => score.userId);
+            .filter((score) => score.opponentId !== null && score.outcome === 'win')
+            .map((score) => score.userId);
 
-        void this.scoreRepository.recordMatch(results)
+        void this.scoreService.recordMatch(results)
             .then(async () => {
                 for (const userId of pvpWinners) {
                     try {
@@ -243,7 +312,7 @@ export abstract class GameGateway implements OnModuleDestroy {
         if (!session || !seat || seat.client)
             return ;
 
-        if (session.roundsPlayed === 0) 
+        if (session.state.roundsPlayed === 0) 
             return this.cancel(sessionId, session, 'opponent disconnected before first round');
 
         session.state = this.matchService.forfeit(session.state, side);
@@ -292,22 +361,22 @@ export abstract class GameGateway implements OnModuleDestroy {
     private async authenticate(client: WebSocket, request: IncomingMessage): Promise<void> {
         const [type, token] = request.headers.authorization?.split(' ') ?? [];
         if (type !== 'Bearer' || !token)
-            return client.close(401, 'unauthorized');
+            return client.close(4401, 'unauthorized');
 
         try {
             const payload = await this.jwtService.verifyAsync<{sub: string; type: string; jti: string;}>(token);
             
             if (payload.type !== 'access')
-                return client.close(401, 'unauthorized');
+                return client.close(4401, 'unauthorized');
             if (this.denyList.isRevoked(payload.jti))
-                return client.close(401, 'unauthorized');
+                return client.close(4401, 'unauthorized');
             if (client.readyState !== WebSocket.OPEN) return;
 
             this.users.set(client, payload.sub);
             this.presenceService.connect(payload.sub, client);
             client.resume();
             } catch {
-                client.close(401, 'unauthorized');
+                client.close(4401, 'unauthorized');
             }
         }
 
@@ -345,5 +414,58 @@ export abstract class GameGateway implements OnModuleDestroy {
             return ;
 
         client.send(JSON.stringify({ event, data }));
+    }
+
+    private isWaiting(client: WebSocket, userId?: string): boolean {
+        for (const slot of this.waiting.values()) {
+            if (slot.some((waiter) => waiter.client === client || waiter.userId === userId))
+                return true;
+        }
+        return false;
+    }
+    
+    private closestWaiter(slot: Waiter[], level: number, maxGap: number): Waiter | undefined {
+        let closest: Waiter | undefined;
+        for (const waiter of slot) {
+            const gap = Math.abs(waiter.level - level);
+            if (gap <= maxGap && (!closest || gap < Math.abs(closest.level - level)))
+                closest = waiter;
+        }
+
+        return closest;
+    }
+
+    private sweepQueue(): void {
+        const now = Date.now();
+        for (const [key, slot] of this.waiting) {
+            for (const waiter of [...slot]) {
+                if (!slot.includes(waiter) || now - waiter.since < WIDEN_AFTER_MS)
+                    continue ;
+                const opponent = this.closestWaiter(slot.filter((w) => w !== waiter), waiter.level, Infinity);
+                if (!opponent)
+                    continue ;
+                this.removeWaiter(key, waiter);
+                this.removeWaiter(key, opponent);
+                this.startPairedMatch(waiter.settings, opponent, waiter);
+            }
+        }
+    }
+
+    private removeWaiter(key: string, waiter: Waiter): void {
+        const slot = this.waiting.get(key);
+        if (!slot)
+            return ;
+        slot.splice(slot.indexOf(waiter), 1);
+        if (slot.length === 0)
+            this.waiting.delete(key);
+    }
+
+    private async levelFor(userId: string): Promise<number> {
+        try {
+            return await this.gamificationService.levelOf(userId);
+        } catch (error) {
+            this.logger.error(`Failed to read level for user ${userId}`, error);
+            return 0;
+        }
     }
 }

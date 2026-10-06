@@ -4,9 +4,10 @@ export type UserAttributes = {
     email: string;
     avatar: string;
     passwordHash: string;
+    xp: number;
 };
 
-export type PublicUserData = Omit<UserAttributes, 'passwordHash'>;
+export type PublicUserData = Omit<UserAttributes, 'passwordHash' | 'xp'>;
 
 export class UserEntity {
     id: string;
@@ -14,6 +15,7 @@ export class UserEntity {
     email: string;
     avatar: string;
     passwordHash: string;
+    xp: number;
 
     constructor(attrs: UserAttributes) {
         this.id = attrs.id;
@@ -21,6 +23,7 @@ export class UserEntity {
         this.email = attrs.email;
         this.avatar = attrs.avatar;
         this.passwordHash = attrs.passwordHash;
+        this.xp = attrs.xp;
     }
  
     toPublicData(): PublicUserData {

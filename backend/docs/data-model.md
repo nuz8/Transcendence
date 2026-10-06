@@ -25,8 +25,10 @@ erDiagram
     game_settings {
         uuid user_id PK "FK -> users.id"
         uuid game_id PK "FK -> games.id"
-        integer best_of
+        integer target
         match_mode mode
+        game_theme theme
+        boolean power_ups
     }
 
     scores {
@@ -103,8 +105,13 @@ Used in `friendships.status` to track friendship request state:
 
 ### `match_mode`
 Used in `game_settings.mode`:
-- `first-to`
-- `best-of`
+- `fixed-target-score` (default) — first to `target`; drawn rounds are replayed
+- `fixed-rounds` — exactly `target` rounds; draws count; can end drawn
+
+### `game_theme`
+Used in `game_settings.theme`:
+- `default` (default)
+- `extra`
 
 ---
 
@@ -156,12 +163,14 @@ Per-user settings for each game. A user can have one settings row per game.
 | :--- | :--- | :--- | :--- |
 | `user_id` | `uuid` | NOT NULL, Composite PK, FK -> `users(id)` | User these settings belong to |
 | `game_id` | `uuid` | NOT NULL, Composite PK, FK -> `games(id)` | Game these settings apply to |
-| `best_of` | `integer` | NOT NULL | Number of rounds/target used by the game settings |
-| `mode` | `match_mode` | NOT NULL, default `'first-to'` | Match format (`first-to` or `best-of`) |
+| `target` | `integer` | NOT NULL | Score to reach (`fixed-target-score`) or rounds to play (`fixed-rounds`), 1–10 |
+| `mode` | `match_mode` | NOT NULL, default `'fixed-target-score'` | Match format (`fixed-target-score` or `fixed-rounds`) |
+| `theme` | `game_theme` | NOT NULL, default `'default'` | How the game page looks; ignored by matchmaking |
+| `power_ups` | `boolean` | NOT NULL, default `false` | One shield and one double per player per match; only players with the same choice are paired |
 
 **Indexes & Constraints:**
 - **Composite Primary Key:** `(user_id, game_id)`
-- **Check:** `game_settings_best_of_allowed` (`best_of IN (1, 3, 5, 7)`)
+- **Check:** `game_settings_target_allowed` (`target IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)`)
 
 ---
 

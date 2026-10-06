@@ -3,7 +3,7 @@ import { WebSocket } from 'ws';
 import { RpsService } from './rps.service';
 import { JwtService } from '@nestjs/jwt';
 import { DenyList } from '../../auth/denyList';
-import { ScoreRepository } from '../../scores';
+import { ScoreService } from '../../scores';
 import { RPS_GAME_ID } from './rps.constants';
 import { GameGateway, type Session } from '../game.gateway';
 import { MatchService } from '../match/match.service';
@@ -11,13 +11,12 @@ import { GamificationService } from '../../gamification';
 import type { Move } from './rps.types';
 import type { Player } from '../match/match.types';
 import { PresenceService } from '../../presence/presence.service';
+import { GameSettingsService } from '../settings/game-settings.service';
 
-const BEST_OF = 3;
 const ROUND_TIME_LIMIT = 60_000;
 @WebSocketGateway({ path: '/games/rps' })
 export class RpsGateway extends GameGateway implements OnGatewayConnection, OnGatewayDisconnect  {
     protected readonly gameId = RPS_GAME_ID;
-    protected readonly bestOf = BEST_OF;
     protected readonly roundTimeLimit = ROUND_TIME_LIMIT;
 
     constructor(
@@ -25,11 +24,12 @@ export class RpsGateway extends GameGateway implements OnGatewayConnection, OnGa
         matchService: MatchService,
         jwtService: JwtService,
         denyList: DenyList,
-        scoreRepository: ScoreRepository,
+        scoreService: ScoreService,
         gamificationService: GamificationService,
+        gameSettingsService: GameSettingsService,
         presenceService: PresenceService,
     ) {
-        super(matchService, jwtService, denyList, scoreRepository, gamificationService, presenceService);
+        super(matchService, jwtService, denyList, scoreService, gamificationService, gameSettingsService, presenceService);
     }
 
     @SubscribeMessage('move')
@@ -61,9 +61,10 @@ export class RpsGateway extends GameGateway implements OnGatewayConnection, OnGa
     }
 
     private resolve(session: Session, sessionId: string, moveA: Move, moveB: Move): void {
-        const played = this.rpsService.playRound(session.state, moveA, moveB);
+        const powerUps = session.pendingPowerUps;
+        session.pendingPowerUps = {};
+        const played = this.rpsService.playRound(session.state, moveA, moveB, powerUps);
         session.state = played.state;
-        session.roundsPlayed += 1;
 
         for (const side of this.sides(session)) {
             const client = side === 'a' ? session.a.client : session.b!.client;
@@ -74,6 +75,8 @@ export class RpsGateway extends GameGateway implements OnGatewayConnection, OnGa
                 ownMove: side === 'a' ? played.round.moveA : played.round.moveB,
                 opMove: side === 'a' ? played.round.moveB : played.round.moveA,
                 outcome: this. rpsService.outcomeFor(side, played.round),
+                ownPowerUp: powerUps[side] ?? null,
+                opPowerUp: powerUps[side === 'a' ? 'b' : 'a'] ?? null,
                 ...this.viewFor(side, played.state),
             });
         }

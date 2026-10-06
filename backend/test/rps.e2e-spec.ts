@@ -7,7 +7,8 @@ import request from 'supertest';
 import { WebSocket } from 'ws';
 import { AppModule } from '../src/app.module';
 import { db } from '../src/db/client';
-import { scores, users } from '../src/db/schema';
+import { scores, users, gameSettings } from '../src/db/schema';
+import { RPS_GAME_ID } from '../src/games/rps/rps.constants';
 
 const SUITE_DOMAIN = '@pvp-suite.local';
 const PASSWORD = 'password123';
@@ -106,6 +107,14 @@ describe('Rps (e2e)', () => {
         return { toA: await a.next('round'), toB: await b.next('round') };
     }
 
+    type Settings = { target: number; mode: 'fixed-target-score' | 'fixed-rounds'; powerUps?: boolean };
+
+    async function useSettings(userId: string, { target, mode, powerUps = false }: Settings): Promise<void> {
+        await db.insert(gameSettings)
+            .values({ userId, gameId: RPS_GAME_ID, target, mode, powerUps })
+            .onConflictDoUpdate({ target: [gameSettings.userId, gameSettings.gameId], set: { target, mode, powerUps } });
+    }
+
     async function xpOf(userId: string): Promise<number> {
         const [row] = await db.select({ xp: users.xp }).from(users).where(eq(users.id, userId));
         return row.xp;
@@ -136,6 +145,7 @@ describe('Rps (e2e)', () => {
         const leftovers = await db.select({ id: users.id }).from(users).where(like(users.email, `%${SUITE_DOMAIN}`));
         if (leftovers.length) {
             await db.delete(scores).where(inArray(scores.userId, leftovers.map((u) => u.id)));
+            await db.delete(gameSettings).where(inArray(gameSettings.userId, leftovers.map((u) => u.id)));
             await db.delete(users).where(like(users.email, `%${SUITE_DOMAIN}`));
         }
 
@@ -151,6 +161,7 @@ describe('Rps (e2e)', () => {
         for (const socket of open.splice(0, open.length))
             socket.close();
         await db.delete(scores).where(inArray(scores.userId, [aliceId, bobId]));
+        await db.delete(gameSettings).where(inArray(gameSettings.userId, [aliceId, bobId]));
         await db.update(users).set({ xp: 0 }).where(inArray(users.id, [aliceId, bobId]));
     });
 
@@ -173,7 +184,7 @@ describe('Rps (e2e)', () => {
         const toB = await b.next('matched');
 
         expect(toA.data.sessionId).toBe(toB.data.sessionId);
-        expect(toA.data.targetRounds).toBe(2);
+        expect(toA.data).toMatchObject({ mode: 'fixed-target-score', target: 2 });
     });
 
     it('refuses a second queue from the same socket, and a bot match while waiting', async () => {
@@ -277,5 +288,105 @@ describe('Rps (e2e)', () => {
         expect(rows).toHaveLength(1);
         expect(rows[0]).toMatchObject({ sessionId, opponentId: null });
         expect(await xpOf(aliceId)).toBe(0);
+    });
+
+    it("starts a bot match with the player's settings", async () => {
+        await useSettings(aliceId, { target: 5, mode: 'fixed-rounds' });
+        const a = await connect(aliceToken);
+
+        a.send('create');
+        a.send('join', (await a.next('created')).data.sessionId);
+
+        expect((await a.next('joined')).data).toMatchObject({ mode: 'fixed-rounds', target: 5, powerUps: false });
+    });
+
+    it('pairs only players on the same settings', async () => {
+        await useSettings(aliceId, { target: 3, mode: 'fixed-rounds' });
+        const a = await connect(aliceToken);
+        const b = await connect(bobToken);
+
+        a.send('queue');
+        await a.next('waiting');
+        b.send('queue');
+        await b.next('waiting');
+
+        expect(await a.quiet(200)).toEqual([]);
+    });
+
+    it('ends a fixed-rounds match drawn and pays 5 XP each', async () => {
+        await useSettings(aliceId, { target: 2, mode: 'fixed-rounds' });
+        await useSettings(bobId, { target: 2, mode: 'fixed-rounds' });
+        const { a, b } = await pair();
+
+        await playRound(a, b);
+        a.send('move', 'rock');
+        await a.next('waiting');
+        b.send('move', 'paper');
+
+        expect((await a.next('over')).data).toMatchObject({ outcome: 'draw', ownScore: 1, opScore: 1 });
+        expect((await b.next('over')).data.outcome).toBe('draw');
+        await rowsOf(aliceId);
+        await rowsOf(bobId);
+        expect(await xpOf(aliceId)).toBe(5);
+        expect(await xpOf(bobId)).toBe(5);
+    });
+
+    it('scores a doubled win twice and ends the match on it', async () => {
+        await useSettings(aliceId, { target: 2, mode: 'fixed-target-score', powerUps: true });
+        await useSettings(bobId, { target: 2, mode: 'fixed-target-score', powerUps: true });
+        const { a, b } = await pair();
+
+        a.send('power-up', 'double');
+        await a.next('powerup_accepted');
+        expect(await b.quiet(100)).toEqual([]);
+
+        const { toA, toB } = await playRound(a, b);
+        expect(toA.data).toMatchObject({ ownPowerUp: 'double', opPowerUp: null, ownScore: 2, opScore: 0 });
+        expect(toB.data).toMatchObject({ ownPowerUp: null, opPowerUp: 'double' });
+        expect((await a.next('over')).data.outcome).toBe('win');
+    });
+
+    it('makes a round a draw with a shield, whoever wins it, once per player', async () => {
+        await useSettings(aliceId, { target: 2, mode: 'fixed-target-score', powerUps: true });
+        await useSettings(bobId, { target: 2, mode: 'fixed-target-score', powerUps: true });
+        const { a, b } = await pair();
+
+        b.send('power-up', 'shield');
+        await b.next('powerup_accepted');
+        const lost = await playRound(a, b);
+        expect(lost.toB.data).toMatchObject({ ownPowerUp: 'shield', ownScore: 0, opScore: 0 });
+
+        a.send('power-up', 'shield');
+        await a.next('powerup_accepted');
+        const won = await playRound(a, b);
+        expect(won.toA.data).toMatchObject({ ownPowerUp: 'shield', ownScore: 0, opScore: 0 });
+
+        b.send('power-up', 'shield');
+        expect((await b.next('error')).data.message).toBe('power-up not available');
+    });
+
+    it('refuses power-ups when they are off', async () => {
+        const { a } = await pair();
+
+        a.send('power-up', 'shield');
+        expect((await a.next('error')).data.message).toBe('power-ups not enabled');
+    });
+
+    it('pairs players whose levels are close', async () => {
+        await db.update(users).set({ xp: 5 }).where(eq(users.id, bobId));
+        await pair();
+    });
+
+    it('keeps players whose levels are far apart waiting', async () => {
+        await db.update(users).set({ xp: 1000 }).where(eq(users.id, bobId));
+        const a = await connect(aliceToken);
+        const b = await connect(bobToken);
+
+        a.send('queue');
+        await a.next('waiting');
+        b.send('queue');
+        await b.next('waiting');
+
+        expect(await a.quiet(200)).toEqual([]);
     });
 });

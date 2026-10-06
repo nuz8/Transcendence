@@ -46,6 +46,7 @@ export class UserRepository {
 				email: user.email,
 				avatar: user.avatar,
 				passwordHash: user.passwordHash,
+				xp: user.xp,
 			})
 			: null
 		);
@@ -68,6 +69,7 @@ export class UserRepository {
 				email: user.email,
 				avatar: user.avatar,
 				passwordHash: user.passwordHash,
+				xp: user.xp,
 			})
 			: null
 		);
@@ -90,6 +92,7 @@ export class UserRepository {
 				email: user.email,
 				avatar: user.avatar,
 				passwordHash: user.passwordHash,
+				xp: user.xp,
 			})
 			: null
 		);
@@ -129,6 +132,7 @@ export class UserRepository {
 				email: user.email,
 				avatar: user.avatar,
 				passwordHash: user.passwordHash,
+				xp: user.xp,
 			});
 		} catch (error: any) {
 			throw this.toConflict(error);
@@ -150,6 +154,7 @@ export class UserRepository {
 					email: user.email,
 					avatar: user.avatar,
 					passwordHash: user.passwordHash,
+					xp: user.xp,
 				})
 			: null;
 	}
@@ -169,6 +174,7 @@ export class UserRepository {
 						email: user.email,
 						avatar: user.avatar,
 						passwordHash: user.passwordHash,
+						xp: user.xp,
 					})
 				: null;
 		} catch (error: any) {

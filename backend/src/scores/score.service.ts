@@ -3,7 +3,7 @@ import { ScoreEntity } from "./score.entity";
 import { ScoreRepository } from "./score.repository";
 import { GameService } from "../games";
 import { MatchHistoryQueryDto } from "./dto/mh-query.dto";
-import { MatchOutcome } from "./score.constants";
+import { MatchOutcome, XP_BY_OUTCOME } from "./score.constants";
 
 export type MatchOpponent = {
     id: string | null;
@@ -48,6 +48,13 @@ export class ScoreService {
         private readonly scoreRepository: ScoreRepository,
         private readonly gameService: GameService,
     ) {}
+
+    recordMatch(scores: ScoreEntity[]): Promise<void> {
+        return this.scoreRepository.recordMatch(scores.map((score) => ({
+            score,
+            xp: score.opponentId ? XP_BY_OUTCOME[score.outcome] : 0,
+        })));
+    }
 
     async listForUser(userId: string, page: number, limit: number): Promise<{ matches: MatchHistoryEntry[]; total: number }> {
         const [rows, total, games] = await Promise.all([

@@ -90,6 +90,11 @@ export class GamificationService {
     return getLevelFromXp(xp);
   }
 
+  async levelOf(userId: string): Promise<number> {
+    const user = await this.userService.findById(userId);
+    return this.getLevel(user?.xp ?? 0);
+  }
+
   async getLeaderboard(
     page: number,
     limit: number

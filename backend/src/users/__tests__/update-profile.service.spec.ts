@@ -20,6 +20,7 @@ describe('UserService - updateProfile', () => {
     email: 'user@example.com',
     avatar: AVATAR_CONSTANTS.DEFAULT_AVATAR_PATH,
     passwordHash: 'hashed_pw',
+    xp: 0,
   });
 
   beforeEach(async () => {
