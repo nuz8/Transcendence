@@ -9,6 +9,7 @@ import { AppModule } from '../src/app.module';
 import { db } from '../src/db/client';
 import { scores, users, gameSettings } from '../src/db/schema';
 import { RPS_GAME_ID } from '../src/games/rps/rps.constants';
+import { RpsGateway } from '../src/games/rps/rps.gateway';
 
 const SUITE_DOMAIN = '@pvp-suite.local';
 const PASSWORD = 'password123';
@@ -160,6 +161,10 @@ describe('Rps (e2e)', () => {
     afterEach(async () => {
         for (const socket of open.splice(0, open.length))
             socket.close();
+
+        const gateway = app.get(RpsGateway);
+        gateway.onModuleDestroy();
+        gateway.onModuleInit();
         await db.delete(scores).where(inArray(scores.userId, [aliceId, bobId]));
         await db.delete(gameSettings).where(inArray(gameSettings.userId, [aliceId, bobId]));
         await db.update(users).set({ xp: 0 }).where(inArray(users.id, [aliceId, bobId]));
@@ -209,6 +214,124 @@ describe('Rps (e2e)', () => {
 
         sameUser.send('queue');
         expect((await sameUser.next('error')).data.message).toBe('already in queue');
+    });
+
+    it('refuses a second match for a user who is already in one, until it ends', async () => {
+        const { a, b } = await pair();
+        const otherTab = await connect(aliceToken);
+
+        otherTab.send('queue');
+        expect((await otherTab.next('error')).data.message).toBe('already in a session');
+        otherTab.send('create');
+        expect((await otherTab.next('error')).data.message).toBe('already in a session');
+
+        a.send('quit');
+        await a.next('over');
+        await b.next('over');
+        await rowsOf(aliceId);
+
+        otherTab.send('queue');
+        await otherTab.next('waiting');
+    });
+
+    it('lets the user rejoin their own match from a new tab while it is open', async () => {
+        const { a, b, sessionId } = await pair();
+        a.socket.close();
+        await b.next('opponent_disconnected');
+
+        const newTab = await connect(aliceToken);
+        newTab.send('queue');
+        const refused = await newTab.next('error');
+        expect(refused.data).toMatchObject({ message: 'already in a session', sessionId });
+
+        newTab.send('join', refused.data.sessionId);
+        expect((await newTab.next('joined')).data).toMatchObject({ ownScore: 0, opScore: 0 });
+    });
+
+    it('lets a player leave the queue and start a match on the same connection', async () => {
+        const a = await connect(aliceToken);
+        a.send('queue');
+        await a.next('waiting');
+
+        a.send('leave-queue');
+        await a.next('left queue');
+        a.send('leave-queue');
+        expect((await a.next('error')).data.message).toBe('not in a queue');
+
+        const b = await connect(bobToken);
+        b.send('queue');
+        await b.next('waiting');
+        expect(await a.quiet(100)).toEqual([]);
+
+        a.send('create');
+        await a.next('created');
+    });
+
+    it('tells a rejoining player they already moved, and keeps the move', async () => {
+        const { a, b, sessionId } = await pair();
+        a.send('move', 'rock');
+        await a.next('waiting');
+        a.socket.close();
+        await b.next('opponent_disconnected');
+
+        const back = await connect(aliceToken);
+        back.send('join', sessionId);
+        const joined = await back.next('joined');
+        expect(joined.data.moved).toBe(true);
+        expect(joined.data.roundTimeLeft).toBeGreaterThan(0);
+        expect(joined.data.roundTimeLeft).toBeLessThanOrEqual(60_000);
+
+        b.send('move', 'scissors');
+        const round = await back.next('round');
+        expect(round.data).toMatchObject({ ownMove: 'rock', outcome: 'win' });
+        expect(round.data.roundTimeLeft).toBeGreaterThan(59_000);
+        await b.next('round');
+
+        back.send('move', 'rock');
+        await back.next('waiting');
+        b.send('move', 'scissors');
+        expect((await b.next('round')).data.roundTimeLeft).toBeNull();
+        await b.next('over');
+    });
+
+    it('starts the next round paused while a player is away', async () => {
+        const { a, b, sessionId } = await pair();
+        a.send('move', 'rock');
+        await a.next('waiting');
+        a.socket.close();
+        await b.next('opponent_disconnected');
+
+        b.send('move', 'scissors');
+        expect((await b.next('round')).data.roundTimeLeft).toBe(60_000);
+        await b.quiet(1000);
+
+        const back = await connect(aliceToken);
+        back.send('join', sessionId);
+        const joined = await back.next('joined');
+        expect(joined.data).toMatchObject({ ownScore: 1, opScore: 0, moved: false });
+        expect(joined.data.roundTimeLeft).toBeGreaterThan(59_500);
+    });
+
+    it('plays a bot match without sending join', async () => {
+        const a = await connect(aliceToken);
+
+        a.send('create');
+        const sessionId = (await a.next('created')).data.sessionId;
+        await a.next('joined');
+        a.send('join', sessionId);
+        expect((await a.next('error')).data.message).toBe('session already joined');
+
+        a.send('move', 'rock');
+        await a.next('round');
+    });
+
+    it('answers a move or a quit outside a match with the same error', async () => {
+        const a = await connect(aliceToken);
+
+        a.send('move', 'rock');
+        expect((await a.next('error')).data.message).toBe('not in a session');
+        a.send('quit');
+        expect((await a.next('error')).data.message).toBe('not in a session');
     });
 
     it('waits for both moves, then shows each player their own side', async () => {
@@ -273,7 +396,6 @@ describe('Rps (e2e)', () => {
 
         a.send('create');
         const sessionId = (await a.next('created')).data.sessionId;
-        a.send('join', sessionId);
         await a.next('joined');
 
         let over: Message | null = null;
@@ -295,7 +417,7 @@ describe('Rps (e2e)', () => {
         const a = await connect(aliceToken);
 
         a.send('create');
-        a.send('join', (await a.next('created')).data.sessionId);
+        await a.next('created');
 
         expect((await a.next('joined')).data).toMatchObject({ mode: 'fixed-rounds', target: 5, powerUps: false });
     });

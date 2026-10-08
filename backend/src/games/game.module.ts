@@ -7,11 +7,12 @@ import { AuthModule } from '../auth';
 import { GameSettingsController } from './settings/game-settings.controller';
 import { GameSettingsService } from './settings/game-settings.service';
 import { GameSettingsRepository } from './settings/game-settings.repository';
+import { ActiveMatchService } from './gateway-utils/active-match.service';
 
 @Module({
     imports: [AuthModule],
     controllers: [GameController, GameSettingsController],
-    providers: [GameService, GameRepository, MatchService, GameSettingsService, GameSettingsRepository],
-    exports: [GameService, MatchService, GameSettingsService],
+    providers: [GameService, GameRepository, MatchService, GameSettingsService, GameSettingsRepository, ActiveMatchService],
+    exports: [GameService, MatchService, GameSettingsService, ActiveMatchService],
 })
 export class GameModule {}

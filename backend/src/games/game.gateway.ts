@@ -3,24 +3,20 @@ import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
 import { ScoreEntity, ScoreService } from '../scores';
 import { MatchService } from './match/match.service';
-import { POWER_UPS, type MatchState, type Player, type MatchMode, type PowerUp } from './match/match.types';
+import { POWER_UPS, type MatchState, type Player, type PowerUp } from './match/match.types';
 import { Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { GamificationService } from '../gamification';
 import { PresenceService } from '../presence/presence.service';
 import { GameSettingsService } from './settings/game-settings.service';
 import { DEFAULT_GAME_SETTINGS } from './settings/game-settings.constants';
 import { SocketAuthenticator } from '../auth/socketAuthenticator';
+import { ActiveMatchService } from './gateway-utils/active-match.service';
+import { MatchQueue, type MatchSettings, type Queued } from './gateway-utils/match-queue';
+import { RoundClock } from './gateway-utils/round-clock';
 
 const RECONNECT_TIME_MS = 30_000;
-const MATCH_LEVEL_RANGE = 2;
-const WIDEN_AFTER_MS = 15_000;
-const QUEUE_SWEEP_INTERVAL_MS = 5_000;
 
-export type Queued = { client: WebSocket; userId: string };
-type MatchSettings = { target: number; mode: MatchMode; powerUps: boolean };
-type Waiter = Queued & { settings: MatchSettings, level: number, since: number };
-
-export type Side = {
+type Seat = {
     userId: string;
     client: WebSocket | null;
     dcTimer: NodeJS.Timeout | null;
@@ -28,10 +24,10 @@ export type Side = {
 
 export type Session = {
     state: MatchState;
-    a: Side;
-    b: Side | null;
+    a: Seat;
+    b: Seat | null;
     pending: Partial<Record<Player, unknown>>;
-    roundTimer: NodeJS.Timeout | null;
+    clock: RoundClock;
     pendingPowerUps: Partial<Record<Player, PowerUp>>;
 };
 
@@ -39,10 +35,8 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(GameGateway.name);
     private readonly sessions = new Map<string, Session>();
     private readonly sessionBySocket = new Map<WebSocket, string>();
-    private readonly waiting = new Map<string, Waiter[]>();
-    private queueSweep: NodeJS.Timeout | null = null;
+    private readonly matchQueue = new MatchQueue((settings, first, second) => this.startPairedMatch(settings, first, second));
 
-    
     constructor(
         protected readonly matchService: MatchService,
         protected readonly socketAuthenticator: SocketAuthenticator,
@@ -50,32 +44,31 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
         private readonly gamificationService: GamificationService,
         private readonly gameSettingsService: GameSettingsService,
         private readonly presenceService: PresenceService,
+        private readonly activeMatchService: ActiveMatchService,
     ) {}
 
     protected abstract readonly gameId: string;
     protected abstract readonly roundTimeLimit: number;
 
     onModuleInit(): void {
-        this.queueSweep = setInterval(() => this.sweepQueue(), QUEUE_SWEEP_INTERVAL_MS);
+        this.matchQueue.start();
     }
 
     onModuleDestroy(): void {
-        if (this.queueSweep)
-            clearInterval(this.queueSweep);
+        this.matchQueue.stop();
         for (const [sessionId, session] of this.sessions)
             this.endSession(sessionId, session);
     }
 
+    //====================================//
+    //========Connection and login========//
+    //====================================//
     handleConnection(client: WebSocket): void {
         this.socketAuthenticator.begin(client);
     }
 
     handleDisconnect(client: WebSocket): void {
-        for (const [ key, slot] of this.waiting){
-            const waiter = slot.find((w) => w.client === client);
-            if (waiter)
-                this.removeWaiter(key, waiter);
-        }
+        this.dequeue(client);
 
         const sessionId = this.sessionBySocket.get(client);
         const session = sessionId ? this.sessions.get(sessionId) : undefined;
@@ -85,12 +78,12 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
             const other = side === 'a' ? session.b : session.a;
             seat.client = null;
             this.sessionBySocket.delete(client);
+            session.clock.pause();
             seat.dcTimer = setTimeout(() => this.dc(sessionId!, side), RECONNECT_TIME_MS);
             if (other?.client)
                 this.send(other.client, 'opponent_disconnected', { reconnectTime: RECONNECT_TIME_MS });
         } else if (sessionId) {
             this.sessionBySocket.delete(client);
-            this.sessions.delete(sessionId);
         }
         const userId = this.socketAuthenticator.release(client);
         if (userId)
@@ -102,77 +95,106 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
         await this.socketAuthenticator.authenticate(client, body, (userId) => this.presenceService.connect(userId, client));
     }
 
+    //==============================================//
+    //========Starting a match: bot or queue========//
+    //==============================================//
     @SubscribeMessage('create')
     async create(@ConnectedSocket() client: WebSocket): Promise<void> {
-        const userid = this.socketAuthenticator.userOf(client);
-        if (!userid)
+        const userId = this.socketAuthenticator.userOf(client);
+        if (!userId)
             return this.send(client, 'error', { message: 'not authenticated' });
 
-        const { target, mode, powerUps } = await this.settingsFor(userid);
+        const { target, mode, powerUps } = await this.settingsFor(userId);
 
         if (!this.socketAuthenticator.userOf(client))
             return ;
-        if (this.sessionBySocket.has(client))
-            return this.send(client, 'error', { message: 'already in a session' });
-
-        if (this.isWaiting(client))
+        if (this.matchQueue.has(userId))
             return this.send(client, 'error', { message: 'already in queue' });
+        if (this.activeMatchService.isBusy(userId))
+            return this.refuseBusy(client, userId);
 
         const sessionId = randomUUID();
-        this.sessions.set(sessionId, {
-            state: this.matchService.createMatch(target, mode, powerUps),
-            a: { userId: userid, client: null, dcTimer: null },
-            b: null,
-            pending: {},
-            roundTimer: null,
-            pendingPowerUps: {},
-        });
+        const session = this.newSession(sessionId, this.matchService.createMatch(target, mode, powerUps), { userId, client, dcTimer: null }, null);
         this.sessionBySocket.set(client, sessionId);
+        this.activeMatchService.add(userId, this.gameId, sessionId);
         this.send(client, 'created', { sessionId });
+        this.sendJoined(client, session, 'a');
     }
 
     @SubscribeMessage('queue')
     async queue(@ConnectedSocket() client: WebSocket): Promise<void> {
         const userId = this.socketAuthenticator.userOf(client);
-            if (!userId)
-                return this.send(client, 'error', { message: 'not authenticated' });
+        if (!userId)
+            return this.send(client, 'error', { message: 'not authenticated' });
         
         const [settings, level] = await Promise.all([this.settingsFor(userId), this.levelFor(userId)]);
-        const key = `${settings.mode}:${settings.target}:${settings.powerUps}`;
-
+        
         if (!this.socketAuthenticator.userOf(client))
             return ;
-        if (this.sessionBySocket.has(client))
-            return this.send(client, 'error', { message: 'already in a session' });
-        if ( this.isWaiting(client, userId))
+        if (this.matchQueue.has(userId))
             return this.send(client, 'error', { message: 'already in queue' });
+        if (this.activeMatchService.isBusy(userId))
+            return this.refuseBusy(client, userId);
+        this.activeMatchService.add(userId, this.gameId);
 
-        const slot = this.waiting.get(key) ?? [];
-        const opponent = this.closestWaiter(slot, level, MATCH_LEVEL_RANGE);
-        if (!opponent) {
-            slot.push({ client, userId, settings, level, since: Date.now() });
-            this.waiting.set(key, slot);
-            return this.send(client, 'waiting', { message: 'waiting for an opponent' });
-        }
-        this.removeWaiter(key, opponent);
-        this.startPairedMatch(settings, opponent, { client, userId });
+        if (!this.matchQueue.join({ client, userId }, settings, level))
+            this.send(client, 'waiting', { message: 'waiting for an opponent' });
     }
-    
+
+    @SubscribeMessage('leave-queue')
+    leaveQueue(@ConnectedSocket() client: WebSocket): void {
+        if (!this.dequeue(client))
+            return this.send(client, 'error', { message: 'not in a queue' });
+        this.send(client, 'left queue', {});
+    }
+
+    private dequeue(client: WebSocket): boolean {
+        const userId = this.matchQueue.leave(client);
+        if (userId)
+            this.activeMatchService.remove(userId);
+        return userId !== undefined;
+    }
+
+    private refuseBusy(client: WebSocket, userId: string): void {
+        const where = this.activeMatchService.whereBusy(userId);
+        this.send(client, 'error', { message: 'already in a session', sessionId: where?.sessionId, gameId: where?.gameId });
+    }
+
+    private async settingsFor(userId: string): Promise<MatchSettings> {
+        try {
+            const settings = await this.gameSettingsService.settingsFor(userId, this.gameId);
+            return settings ? { target: settings.target, mode: settings.mode, powerUps: settings.powerUps } : DEFAULT_GAME_SETTINGS;
+        } catch (error) {
+            this.logger.error(`Failed to read game settings for user ${userId}`, error);
+            return DEFAULT_GAME_SETTINGS;
+        }
+    }
+
+    private async levelFor(userId: string): Promise<number> {
+        try {
+            return await this.gamificationService.levelOf(userId);
+        } catch (error) {
+            this.logger.error(`Failed to read level for user ${userId}`, error);
+            return 0;
+        }
+    }
+
+    //==================================//
+    //========Creating a session========//
+    //==================================//
     private startPairedMatch(settings: MatchSettings, first: Queued, second: Queued): void {
         const sessionId = randomUUID();
-        const session: Session = {
-            state: this.matchService.createMatch(settings.target, settings.mode, settings.powerUps),
-            a: { userId: first.userId, client: first.client, dcTimer: null },
-            b: { userId: second.userId, client: second.client, dcTimer: null },
-            pending: {},
-            roundTimer: null,
-            pendingPowerUps: {},
-        };
-
-        this.sessions.set(sessionId, session);
+        const session = this.newSession(
+            sessionId,
+            this.matchService.createMatch(settings.target, settings.mode, settings.powerUps),
+            { userId: first.userId, client: first.client, dcTimer: null },
+            { userId: second.userId, client: second.client, dcTimer: null },
+        );
         this.sessionBySocket.set(first.client, sessionId);
         this.sessionBySocket.set(second.client, sessionId);
-        this.startRoundTimer(sessionId, session);
+        this.activeMatchService.add(first.userId, this.gameId, sessionId);
+        this.activeMatchService.add(second.userId, this.gameId, sessionId);
+        this.startRoundTimer(session);
 
         for (const player of [first, second]) {
             this.send(player.client, 'matched', {
@@ -180,10 +202,27 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
                 mode: session.state.mode,
                 target: session.state.target,
                 powerUps: session.state.powerUps,
+                roundTimeLeft: session.clock.timeLeft(),
             });
         }
     }
 
+    private newSession(sessionId: string, state: MatchState, a: Seat, b: Seat | null): Session {
+        const session: Session = {
+            state,
+            a,
+            b,
+            pending: {},
+            clock: new RoundClock(() => this.roundExpired(sessionId)),
+            pendingPowerUps: {},
+        };
+        this.sessions.set(sessionId, session);
+        return session;
+    }
+
+    //=======================================//
+    //========Joining and coming back========//
+    //=======================================//
     @SubscribeMessage('join')
     join(@ConnectedSocket() client: WebSocket, @MessageBody() sessionId: unknown): void {
         if (!this.socketAuthenticator.userOf(client))
@@ -205,13 +244,21 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
 
         seat.client = client;
         this.sessionBySocket.set(client, sessionId as string);
+        this.resumeRoundTimer(session);
         const side = this.sideOf(session, client)!;
         const other = side === 'a' ? session.b : session.a;
         if (other?.client)
-            this.send(other.client, 'opponent_reconnected', {});
-        this.send(client, 'joined', { mode: session.state.mode, target: session.state.target, powerUps: session.state.powerUps, powerUpsLeft: session.state.powerUpsLeft[side], ...this.viewFor(side, session.state), roundsPlayed: session.state.roundsPlayed });
+            this.send(other.client, 'opponent_reconnected', { roundTimeLeft: session.clock.timeLeft() });
+        this.sendJoined(client, session, side);
     }
 
+    private sendJoined(client: WebSocket, session: Session, side: Player): void {
+        this.send(client, 'joined', { mode: session.state.mode, target: session.state.target, powerUps: session.state.powerUps, powerUpsLeft: session.state.powerUpsLeft[side], ...this.viewFor(side, session.state), roundsPlayed: session.state.roundsPlayed, moved: session.pending[side] !== undefined, powerUp: session.pendingPowerUps[side] ?? null, roundTimeLeft: session.clock.timeLeft() });
+    }
+
+    //=======================//
+    //========Playing========//
+    //=======================//
     @SubscribeMessage('power-up')
     powerUp(@ConnectedSocket() client: WebSocket, @MessageBody() body: unknown): void {
         const session = this.currentSession(client);
@@ -240,23 +287,40 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
     quit(@ConnectedSocket() client: WebSocket): void {
         const session = this.currentSession(client);
         if (!session)
-            return this.send(client, 'quit', { message: 'no match' });
+            return this.send(client, 'error', { message: 'not in a session' });
         session.state = this.matchService.forfeit(session.state, this.sideOf(session, client)!);
         this.finish(session, this.sessionIdOf(client)!);
     }
 
-    private async settingsFor(userId: string): Promise<MatchSettings> {
-        const defaults = DEFAULT_GAME_SETTINGS;
-
-        try {
-            const settings = await this.gameSettingsService.settingsFor(userId, this.gameId);
-            return settings ? { target: settings.target, mode: settings.mode, powerUps: settings.powerUps } : defaults;
-        } catch (error) {
-            this.logger.error(`Failed to read game settings for user ${userId}`, error);
-            return defaults;
-        }
+    //===========================//
+    //========Round clock========//
+    //===========================//
+    protected startRoundTimer(session: Session): void {
+        session.clock.reset(this.roundTimeLimit);
+        this.resumeRoundTimer(session);
     }
 
+    private resumeRoundTimer(session: Session): void {
+        if (session.a.client && session.b?.client)
+            session.clock.resume();
+    }
+
+    private roundExpired(sessionId: string): void {
+        const session = this.sessions.get(sessionId);
+        if (!session)
+            return ;
+
+        const idle = this.sides(session).filter((side) => session.pending[side] === undefined);
+        if (idle.length !== 1)
+            return this.cancel(sessionId, session, 'nobody moved in time');
+
+        session.state = this.matchService.forfeit(session.state, idle[0]);
+        this.finish(session, sessionId);
+    }
+
+    //==============================//
+    //========Ending a match========//
+    //==============================//
     protected finish(session: Session, sessionId: string): void {
         const { state } = session;
 
@@ -325,38 +389,20 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
                 this.send(seat.client, 'cancelled', { message });
     }
 
-    protected startRoundTimer(sessionId: string, session: Session): void {
-        if (session.roundTimer)
-            clearTimeout(session.roundTimer);
-        session.roundTimer = setTimeout(() => this.roundExpired(sessionId), this.roundTimeLimit);
-    }
-
-    private roundExpired(sessionId: string): void {
-        const session = this.sessions.get(sessionId);
-        if (!session)
-            return ;
-
-        session.roundTimer = null;
-        const idle = this.sides(session).filter((side) => session.pending[side] === undefined);
-        if (idle.length !== 1)
-            return this.cancel(sessionId, session, 'nobody moved in time');
-
-        session.state = this.matchService.forfeit(session.state, idle[0]);
-        this.finish(session, sessionId);
-    }
-
     private endSession(sessionId: string, session: Session): void {
         for (const seat of [session.a, session.b]){
+            if (seat)
+                this.activeMatchService.remove(seat.userId);
             if (seat?.dcTimer)
                 clearTimeout(seat.dcTimer);
             if (seat?.client)
                 this.sessionBySocket.delete(seat.client);
         }
-        if (session.roundTimer)
-            clearTimeout(session.roundTimer);
+        session.clock.stop();
         this.sessions.delete(sessionId);
     }
 
+    //========Helpers for game gateways========//
     protected sideOf(session: Session, client: WebSocket): Player | undefined {
         if (session.a.client === client)
             return 'a';
@@ -385,64 +431,10 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
         return session && this.sideOf(session, client) ? session : undefined;
     }
 
-
     protected send(client: WebSocket, event: string, data: unknown): void {
         if (client.readyState !== WebSocket.OPEN)
             return ;
 
         client.send(JSON.stringify({ event, data }));
-    }
-
-    private isWaiting(client: WebSocket, userId?: string): boolean {
-        for (const slot of this.waiting.values()) {
-            if (slot.some((waiter) => waiter.client === client || waiter.userId === userId))
-                return true;
-        }
-        return false;
-    }
-    
-    private closestWaiter(slot: Waiter[], level: number, maxGap: number): Waiter | undefined {
-        let closest: Waiter | undefined;
-        for (const waiter of slot) {
-            const gap = Math.abs(waiter.level - level);
-            if (gap <= maxGap && (!closest || gap < Math.abs(closest.level - level)))
-                closest = waiter;
-        }
-
-        return closest;
-    }
-
-    private sweepQueue(): void {
-        const now = Date.now();
-        for (const [key, slot] of this.waiting) {
-            for (const waiter of [...slot]) {
-                if (!slot.includes(waiter) || now - waiter.since < WIDEN_AFTER_MS)
-                    continue ;
-                const opponent = this.closestWaiter(slot.filter((w) => w !== waiter), waiter.level, Infinity);
-                if (!opponent)
-                    continue ;
-                this.removeWaiter(key, waiter);
-                this.removeWaiter(key, opponent);
-                this.startPairedMatch(waiter.settings, opponent, waiter);
-            }
-        }
-    }
-
-    private removeWaiter(key: string, waiter: Waiter): void {
-        const slot = this.waiting.get(key);
-        if (!slot)
-            return ;
-        slot.splice(slot.indexOf(waiter), 1);
-        if (slot.length === 0)
-            this.waiting.delete(key);
-    }
-
-    private async levelFor(userId: string): Promise<number> {
-        try {
-            return await this.gamificationService.levelOf(userId);
-        } catch (error) {
-            this.logger.error(`Failed to read level for user ${userId}`, error);
-            return 0;
-        }
     }
 }
