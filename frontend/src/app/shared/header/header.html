@@ -1,0 +1,19 @@
+<nav>
+	<div>
+		<a routerLink="/">
+			Home
+		</a>
+	</div>
+	@if (isUserLoggedIn()) {
+    <div>
+			<a routerLink="/profile">
+				My account
+			</a>
+		</div>
+		<div>
+			<button type="button" (click)="onLogout()">
+				Logout
+			</button>
+		</div>
+	}
+</nav>

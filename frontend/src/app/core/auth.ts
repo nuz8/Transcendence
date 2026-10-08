@@ -57,16 +57,16 @@ export class Auth {
 
   logout(): Observable<LogoutResponse> {
     const token = this._accessToken();
-    return this.http
-      .post<LogoutResponse>(
-        `${environment.apiUrl}/auth/logout`,
-        {},
-        {
-          withCredentials: true,
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        },
-      )
-      .pipe(tap(() => this._accessToken.set(null)));
+    this._accessToken.set(null);
+
+    return this.http.post<LogoutResponse>(
+      `${environment.apiUrl}/auth/logout`,
+      {},
+      {
+        withCredentials: true,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      },
+    );
   }
 
   isLoggedIn(): boolean {
