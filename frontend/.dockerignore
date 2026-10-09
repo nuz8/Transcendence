@@ -1,0 +1,16 @@
+# Node and build output
+node_modules
+dist
+out-tsc
+.angular
+.cache
+.tmp
+
+# Version control & CI files
+.git
+.gitignore
+
+# Docker & local orchestration
+Dockerfile
+Dockerfile.*
+.dockerignore

@@ -1,0 +1,28 @@
+# Copied from https://docs.docker.com/guides/angular/#step-1-create-a-development-dockerfile
+
+# Define the Node.js version to use (Alpine for a small footprint)
+ARG NODE_VERSION=24.15.0-alpine
+
+# Set the base image for development
+FROM node:${NODE_VERSION} AS dev
+
+# Set environment variable to indicate development mode
+ENV NODE_ENV=development
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy only the dependency files first to optimize Docker caching
+COPY package.json package-lock.json* ./
+
+# Install dependencies using npm with caching to speed up subsequent builds
+RUN --mount=type=cache,target=/root/.npm npm install
+
+# Copy all application source files into the container
+COPY . .
+
+# Expose the port the dev server listens on (matches nginx's proxy target)
+EXPOSE 8080
+
+# Start the Angular dev server, bound to all interfaces on the shared port
+CMD ["npm", "start", "--", "--host=0.0.0.0", "--port=8080"]

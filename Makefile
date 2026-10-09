@@ -8,10 +8,13 @@ RED = \033[0;31m
 DARK_GREY = \033[1;30m
 RESET = \033[0m
 
-.PHONY: up build down clean fclean restart reset logs ps db-gen db-migrate db-test type-check health-check help certs certs-clean
+.PHONY: up dev build down clean fclean restart reset logs ps db-gen db-migrate db-test type-check health-check help certs certs-clean
 
 up: certs
 	$(COMPOSE) up --build -d
+
+dev: certs
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml up --build --watch
 
 build:
 	$(COMPOSE) build
@@ -74,6 +77,7 @@ health-check:
 help:
 	@printf 'Available targets:\n'
 
+	@printf '  $(DARK_GREY)make dev$(RESET)                                    Run containers in dev mode.\n'
 	@printf '  $(DARK_GREY)make build$(RESET)                                  Build Compose services.\n'
 	@printf '  $(DARK_GREY)make down$(RESET)                                   Stop and remove containers.\n'
 	@printf '  $(RED)make clean                                  Remove containers and docker volumes.\n$(RESET)'
