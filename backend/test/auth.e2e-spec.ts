@@ -9,6 +9,7 @@ import { WsAdapter } from '@nestjs/platform-ws';
 import { join } from 'node:path';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
+import { JwtService } from '@nestjs/jwt';
 
 
 function extractCookie(res: request.Response): string {
@@ -260,6 +261,43 @@ describe('Auth Registration (e2e)', () => {
         .post('/auth/refresh')
         .set('Cookie', cookie)
         .expect(401);
+    });
+
+    it('logs out with an expired access token and still revokes the refresh token', async () => {
+      const loginRes = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: 'auth_flow_e2e@example.com', password: 'password123' })
+        .expect(200);
+      const cookie = extractCookie(loginRes);
+      const expiredToken = new JwtService({ secret: process.env.JWT_SECRET }).sign({
+        sub: loginRes.body.user.id,
+        type: 'access',
+        jti: 'expired-access-jti',
+        exp: Math.floor(Date.now() / 1000) - 60,
+      });
+
+      const logoutRes = await request(app.getHttpServer())
+        .post('/auth/logout')
+        .set('Authorization', `Bearer ${expiredToken}`)
+        .set('Cookie', cookie)
+        .expect(200);
+
+      expect(logoutRes.body.refresh_token_revoked).toBe(true);
+      expect(extractCookie(logoutRes)).toBe('refresh_token=');
+
+      await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .set('Cookie', cookie)
+        .expect(401);
+    });
+
+    it('succeeds and clears the cookie even with no token at all', async () => {
+      const logoutRes = await request(app.getHttpServer())
+        .post('/auth/logout')
+        .expect(200);
+
+      expect(logoutRes.body).toEqual({ success: true });
+      expect(extractCookie(logoutRes)).toBe('refresh_token=');
     });
   });
 

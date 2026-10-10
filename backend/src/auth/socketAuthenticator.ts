@@ -60,12 +60,13 @@ export class SocketAuthenticator {
         return client.close(4401, 'unauthorized');
 
       this.socketAuthRegistry.register(client, payload.jti, payload.exp);
-      if (currentUserId === payload.sub)
-        return;
+      if (currentUserId === undefined) {
+        this.users.set(client, payload.sub);
+        await onFirstAuth(payload.sub);
+      }
 
-      this.users.set(client, payload.sub);
-      await onFirstAuth(payload.sub);
       client.send(JSON.stringify({ event: 'authenticated', data: { userId: payload.sub } }));
+
     } catch {
       client.close(4401, 'unauthorized');
     }

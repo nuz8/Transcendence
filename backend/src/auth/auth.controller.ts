@@ -2,8 +2,7 @@ import { Controller, Post, Body, HttpCode, HttpStatus, UnauthorizedException, Co
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { UseGuards, Req } from '@nestjs/common';
-import { AuthGuard } from './guards/auth.guard';
+import { Req } from '@nestjs/common';
 import { DenyList } from './denyList';
 import { AllowList } from './allowList';
 import { JwtService } from '@nestjs/jwt';
@@ -22,10 +21,6 @@ import {
   RefreshResponseDto,
   LogoutResponseDto,
 } from './dto/auth-response.dto';
-
-interface AuthenticatedRequest extends Request {
-  user: { sub: string; jti: string; exp: number };
-}
 
 @ApiAuthController()
 @Controller('auth')
@@ -94,16 +89,13 @@ export class AuthController {
 
   @Post('logout')
   @ApiPostAuthLogout()
-  @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
   async logout(
-    @Req() request: AuthenticatedRequest,
+    @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<LogoutResponseDto> {
-    const expiresAt = request.user.exp * 1000;
-    this.denyList.revoke(request.user.jti, expiresAt);
-
     response.clearCookie(REFRESH_TOKEN_COOKIE.NAME, REFRESH_TOKEN_COOKIE.OPTIONS);
+    await this.revokeAccessToken(request);
 
     const refreshToken = request.cookies[REFRESH_TOKEN_COOKIE.NAME];
     if (!refreshToken) {
@@ -117,11 +109,20 @@ export class AuthController {
       return { success: true, refresh_token_revoked: false };
     }
 
-    if (payload.sub !== request.user.sub) {
-      return { success: true, refresh_token_revoked: false };
-    }
-
     this.allowList.remove(payload.jti);
     return { success: true, refresh_token_revoked: true };
+  }
+
+  private async revokeAccessToken(request: Request): Promise<void> {
+    const [type, token] = request.headers.authorization?.split(' ') ?? [];
+    if (type !== 'Bearer' || !token) return;
+
+    try {
+      const payload = await this.jwtService.verifyAsync<{ type: string; jti: string; exp: number }>(token);
+      if (payload.type === 'access')
+        this.denyList.revoke(payload.jti, payload.exp * 1000);
+    } catch {
+      return;
+    }
   }
 }

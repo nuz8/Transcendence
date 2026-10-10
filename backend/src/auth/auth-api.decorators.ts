@@ -49,8 +49,11 @@ export function ApiPostAuthRegister() {
 export function ApiPostAuthLogout() {
 	return applyDecorators(
     ApiBearerAuth('access-token'),
-    ApiOperation({ summary: 'Log out and revoke the current tokens' }),
+    ApiOperation({
+      summary: 'Log out and revoke the current tokens',
+      description: 'Always succeeds and clears the refresh cookie. The bearer access token is optional: it is revoked only if still valid.',
+    }),
     ApiOkResponse({ type: LogoutResponseDto }),
-    ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' }),
   );
 }
+

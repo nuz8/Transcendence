@@ -133,7 +133,7 @@ describe('SocketAuthenticator', () => {
   });
 
   describe('renewal', () => {
-    it('extends the expiry without running onFirstAuth again', async () => {
+    it('extends the expiry and acknowledges it without running onFirstAuth again', async () => {
       verifyReturns(accessPayload('user-1', 'jti-old', 1), accessPayload('user-1', 'jti-new'));
 
       await connect('old-token');
@@ -142,7 +142,10 @@ describe('SocketAuthenticator', () => {
 
       expect(client.close).not.toHaveBeenCalled();
       expect(onFirstAuth).toHaveBeenCalledTimes(1);
-      expect(client.send).toHaveBeenCalledTimes(1);
+      expect(client.send).toHaveBeenCalledTimes(2);
+      expect(client.send).toHaveBeenLastCalledWith(
+        JSON.stringify({ event: 'authenticated', data: { userId: 'user-1' } }),
+      );
     });
 
     it('closes the socket when the new token belongs to another user', async () => {
