@@ -29,6 +29,7 @@ export type Session = {
     pending: Partial<Record<Player, unknown>>;
     clock: RoundClock;
     pendingPowerUps: Partial<Record<Player, PowerUp>>;
+    game?: unknown; // Tictactoe-specific data (like Board); Optional so that rps can ignore it and the tests still work; this will stay undefined for RPS as it does not need it
 };
 
 export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
@@ -49,6 +50,8 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
 
     protected abstract readonly gameId: string;
     protected abstract readonly roundTimeLimit: number;
+    protected readonly allowSolo: boolean = true;           // Turn this off for games that do not support solo mode (starts through queue only)
+    protected readonly supportsPowerUps: boolean = true;    // Turn this off for games that do not support power-ups, which would force the setting off for every player
 
     onModuleInit(): void {
         this.matchQueue.start();
@@ -103,6 +106,8 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
         const userId = this.socketAuthenticator.userOf(client);
         if (!userId)
             return this.send(client, 'error', { message: 'not authenticated' });
+        if (!this.allowSolo)    // Rejects queue-only (PvP-only) games
+            return this.send(client, 'error', { message: 'this game does not support bot mode' });
 
         const { target, mode, powerUps } = await this.settingsFor(userId);
 
@@ -161,13 +166,16 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
     }
 
     private async settingsFor(userId: string): Promise<MatchSettings> {
+        let settings: MatchSettings = DEFAULT_GAME_SETTINGS;
         try {
-            const settings = await this.gameSettingsService.settingsFor(userId, this.gameId);
-            return settings ? { target: settings.target, mode: settings.mode, powerUps: settings.powerUps } : DEFAULT_GAME_SETTINGS;
+            const saved = await this.gameSettingsService.settingsFor(userId, this.gameId);
+            if (saved)
+                settings = { target: saved.target, mode: saved.mode, powerUps: saved.powerUps };
         } catch (error) {
             this.logger.error(`Failed to read game settings for user ${userId}`, error);
-            return DEFAULT_GAME_SETTINGS;
         }
+        // Return the settings while ignoring a possibly saved power-ups preference for games that don't suppor them
+        return { target: settings.target, mode: settings.mode, powerUps: settings.powerUps && this.supportsPowerUps };
     }
 
     private async levelFor(userId: string): Promise<number> {
@@ -196,13 +204,15 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
         this.activeMatchService.add(second.userId, this.gameId, sessionId);
         this.startRoundTimer(session);
 
-        for (const player of [first, second]) {
+        // 'a' is always the first queued player: the pairing gives each seat its own extras
+        for (const [side, player] of [['a', first], ['b', second]] as const) {
             this.send(player.client, 'matched', {
                 sessionId,
                 mode: session.state.mode,
                 target: session.state.target,
                 powerUps: session.state.powerUps,
                 roundTimeLeft: session.clock.timeLeft(),
+                ...this.sessionExtras(side, session),
             });
         }
     }
@@ -215,6 +225,7 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
             pending: {},
             clock: new RoundClock(() => this.roundExpired(sessionId)),
             pendingPowerUps: {},
+            game: this.newGameState(),  // undefined for RPS, board and turn for Ttt
         };
         this.sessions.set(sessionId, session);
         return session;
@@ -253,7 +264,18 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
     }
 
     private sendJoined(client: WebSocket, session: Session, side: Player): void {
-        this.send(client, 'joined', { mode: session.state.mode, target: session.state.target, powerUps: session.state.powerUps, powerUpsLeft: session.state.powerUpsLeft[side], ...this.viewFor(side, session.state), roundsPlayed: session.state.roundsPlayed, moved: session.pending[side] !== undefined, powerUp: session.pendingPowerUps[side] ?? null, roundTimeLeft: session.clock.timeLeft() });
+        this.send(client, 'joined', {
+            mode: session.state.mode,
+            target: session.state.target,
+            powerUps: session.state.powerUps,
+            powerUpsLeft: session.state.powerUpsLeft[side],
+            ...this.viewFor(side, session.state),
+            roundsPlayed: session.state.roundsPlayed,
+            moved: session.pending[side] !== undefined,
+            powerUp: session.pendingPowerUps[side] ?? null,
+            roundTimeLeft: session.clock.timeLeft(),
+            ...this.sessionExtras(side, session),
+        });
     }
 
     //=======================//
@@ -305,7 +327,7 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
             session.clock.resume();
     }
 
-    private roundExpired(sessionId: string): void {
+    protected roundExpired(sessionId: string): void {
         const session = this.sessions.get(sessionId);
         if (!session)
             return ;
@@ -436,5 +458,20 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
             return ;
 
         client.send(JSON.stringify({ event, data }));
+    }
+
+    // Method to build game-specific state stored in Session.game when a session is created
+    protected newGameState(): unknown {
+        return undefined;
+    }
+
+    // Extra fields merged into the `matched` and `joined` messages (e.g. board, symbol).
+    protected sessionExtras(_side: Player, _session: Session): Record<string, unknown> {
+        return {};
+    }
+
+    // Lets subclasses look up a session by id without exposing the whole map.
+    protected sessionById(sessionId: string): Session | undefined {
+        return this.sessions.get(sessionId);
     }
 }

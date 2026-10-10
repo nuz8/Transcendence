@@ -16,7 +16,7 @@ import { ChatModule } from './chat/chat.module';
 import { GamificationModule } from './gamification';
 import { PresenceModule } from './presence/presence.module';
 import { ProfileModule } from './profiles/profile.module';
-
+import { TicTacToeModule } from './games/tictactoe/tictactoe.module';
 
 @Module({
   imports: [
@@ -31,6 +31,7 @@ import { ProfileModule } from './profiles/profile.module';
     DbModule,
     GameModule,
     RpsModule,
+    TicTacToeModule,
     FriendModule,
     ScoreModule,
     ChatModule,

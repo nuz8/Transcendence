@@ -12,6 +12,11 @@ import type { WebSocket } from 'ws';
 import { ActiveMatchService } from '../gateway-utils/active-match.service';
 import { RoundClock } from '../gateway-utils/round-clock';
 
+const mockGamificationService = () => ({
+  levelOf: jest.fn().mockResolvedValue(0),
+  processPvpWin: jest.fn().mockResolvedValue([]),
+}) as unknown as GamificationService;
+
 class TestGateway extends GameGateway {
   protected readonly gameId: string = 'test-game';
   protected readonly roundTimeLimit = 60_000;
@@ -22,7 +27,7 @@ class TestGateway extends GameGateway {
     scoreService: ScoreService,
     gamificationService: GamificationService,
     presenceService: PresenceService,
-    gameSettingsService = {} as GameSettingsService,
+    gameSettingsService = { settingsFor: jest.fn().mockResolvedValue(null) } as unknown as GameSettingsService,
     activeMatchService = new ActiveMatchService(),
   ) {
     super(
@@ -133,7 +138,7 @@ describe('GameGateway - authentication', () => {
       {} as MatchService,
       new SocketAuthenticator(jwtService, denyList, socketAuthRegistry),
       {} as ScoreService,
-      {} as GamificationService,
+      mockGamificationService(),
       presenceService,
     );
   });
@@ -181,8 +186,8 @@ describe('GameGateway - authentication', () => {
   it('refuses a queue in one game while the same user waits in another', async () => {
     const authenticator = new SocketAuthenticator(jwtService, new DenyList(), socketAuthRegistry);
     const shared = new ActiveMatchService();
-    const first = new TestGateway({} as MatchService, authenticator, {} as ScoreService, {} as GamificationService, presenceService, undefined, shared);
-    const second = new OtherGameGateway({} as MatchService, authenticator, {} as ScoreService, {} as GamificationService, presenceService, undefined, shared);
+    const first = new TestGateway({} as MatchService, authenticator, {} as ScoreService, mockGamificationService(), presenceService, undefined, shared);
+    const second = new OtherGameGateway({} as MatchService, authenticator, {} as ScoreService, mockGamificationService(), presenceService, undefined, shared);
     (jwtService.verifyAsync as jest.Mock).mockResolvedValue({ sub: 'user-1', type: 'access', jti: 'jti-1', exp: Math.floor(Date.now() / 1000) + 3600 });
     const socketOne = fakeSocket();
     const socketTwo = fakeSocket();
@@ -202,8 +207,8 @@ describe('GameGateway - authentication', () => {
   it('tells a user refused in one game which match they are in, in the other', async () => {
     const authenticator = new SocketAuthenticator(jwtService, new DenyList(), socketAuthRegistry);
     const shared = new ActiveMatchService();
-    const first = new TestGateway(new MatchService(), authenticator, {} as ScoreService, {} as GamificationService, presenceService, undefined, shared);
-    const second = new OtherGameGateway(new MatchService(), authenticator, {} as ScoreService, {} as GamificationService, presenceService, undefined, shared);
+    const first = new TestGateway(new MatchService(), authenticator, {} as ScoreService, mockGamificationService(), presenceService, undefined, shared);
+    const second = new OtherGameGateway(new MatchService(), authenticator, {} as ScoreService, mockGamificationService(), presenceService, undefined, shared);
     (jwtService.verifyAsync as jest.Mock).mockResolvedValue({ sub: 'user-1', type: 'access', jti: 'jti-1', exp: Math.floor(Date.now() / 1000) + 3600 });
     const socketOne = fakeSocket();
     const socketTwo = fakeSocket();
@@ -283,7 +288,6 @@ describe('GameGateway - authentication', () => {
 
       gateway.handleConnection(socket);
       await gateway.auth(socket, { token: userId });
-      await gateway.queue(socket);
       return { socket, sent };
     }
 
