@@ -1,10 +1,9 @@
 import { inject, Injectable, isDevMode, signal } from "@angular/core";
-import { Auth } from "./auth";
-import { getSocketUrl } from "./socket-url";
+import { RealtimeSockets } from "./realtime-sockets";
 
 @Injectable({ providedIn: 'root' })
 export class RpsSocketService {
-  private readonly auth = inject(Auth);
+  private readonly realtimeSockets = inject(RealtimeSockets);
   private ws: WebSocket | null = null;
   readonly connected = signal(false);
 
@@ -13,8 +12,7 @@ export class RpsSocketService {
       return this.ws;
     }
     
-    const url = getSocketUrl('/games/rps');
-    this.ws = new WebSocket(url);
+    this.ws = this.realtimeSockets.open('/games/rps');
 
     // Expose to window for testing in the browser DevTools console
     if (isDevMode()) {
@@ -25,16 +23,8 @@ export class RpsSocketService {
     }
 
     this.ws.addEventListener('open', () => {
-      this.connected.set(true);
-      console.log('RPS WebSocket connected to: ', url);
-       
-      const token = this.auth.accessToken();
-      if (token) {
-        this.ws?.send(JSON.stringify({ event: 'auth', data: { token } }));
-        console.log('Sent auth token to RPS gateway');
-      } else {
-        console.warn('No access token available to authenticate WebSocket!');
-      }
+      this.connected.set(true);      
+      console.log('RPS WebSocket connected to: ', this.ws?.url);
     });
 
     this.ws.addEventListener('message', (event) => {
