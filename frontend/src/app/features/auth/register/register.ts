@@ -3,7 +3,7 @@ import { email, form, FormField, maxLength, minLength, required, submit } from '
 import { firstValueFrom } from 'rxjs';
 import { Auth } from '../../../core/auth'
 import { Router, RouterLink } from '@angular/router';
-import { RegisterData } from '../../../core/auth/auth.models'
+import { RegisterDto } from '../../../core/modules/openapi';
 import { AUTH_VALID_RULES } from '../../../core/auth/auth-validation.constants';
 import { getAuthErrorMessage } from '../../../core/auth/auth-error.util';
 import { FieldErrors } from '../../../shared/field-errors/field-errors';
@@ -21,7 +21,7 @@ export class Register {
   readonly submitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
-  registerModel = signal<RegisterData>({
+  registerModel = signal<RegisterDto>({
     username: '',
     email: '',
     password: ''

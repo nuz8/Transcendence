@@ -3,7 +3,7 @@ import { email, form, FormField, required, submit } from '@angular/forms/signals
 import { firstValueFrom } from 'rxjs';
 import { Auth } from '../../../core/auth'
 import { Router, RouterLink } from '@angular/router';
-import { LoginData } from '../../../core/auth/auth.models'
+import { LoginDto } from '../../../core/modules/openapi';
 import { getAuthErrorMessage } from '../../../core/auth/auth-error.util';
 import { FieldErrors } from '../../../shared/field-errors/field-errors';
 
@@ -20,7 +20,7 @@ export class Login {
   readonly submitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
-  loginModel = signal<LoginData>({
+  loginModel = signal<LoginDto>({
     email: '',
     password: '',
   });

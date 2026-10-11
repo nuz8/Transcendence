@@ -4,6 +4,7 @@ import { HttpClient, HttpErrorResponse, provideHttpClient, withInterceptors } fr
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { authInterceptor } from './auth.interceptor';
 import { Auth } from './auth';
+import { provideApi } from './modules/openapi';
 import { environment } from '../../environments/environment';
 
 function flushPromises(): Promise<void> {
@@ -20,6 +21,7 @@ describe('authInterceptor', () => {
       providers: [
         provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
+        provideApi({ basePath: environment.apiUrl, withCredentials: true }),
       ],
     });
     httpMock = TestBed.inject(HttpTestingController);

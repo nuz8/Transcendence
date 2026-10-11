@@ -4,6 +4,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { initAuth } from './auth-initializer';
 import { Auth } from './auth';
+import { provideApi } from './modules/openapi';
 import { environment } from '../../environments/environment';
 
 describe('initAuth', () => {
@@ -12,7 +13,11 @@ describe('initAuth', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideApi({ basePath: environment.apiUrl, withCredentials: true }),
+      ],
     });
     httpMock = TestBed.inject(HttpTestingController);
     auth = TestBed.inject(Auth);

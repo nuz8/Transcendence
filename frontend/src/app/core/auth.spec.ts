@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Auth } from './auth';
+import { provideApi } from './modules/openapi';
 import { environment } from '../../environments/environment';
 
 function flushPromises(): Promise<void> {
@@ -15,7 +16,11 @@ describe('Auth.refresh', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideApi({ basePath: environment.apiUrl, withCredentials: true }),
+      ],
     });
     httpMock = TestBed.inject(HttpTestingController);
     auth = TestBed.inject(Auth);

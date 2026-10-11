@@ -1,8 +1,6 @@
 import { Injectable, signal, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { AuthService, LoginDto, LoginResponseDto, LogoutResponseDto, PublicUserResponseDto, RefreshResponseDto, RegisterDto } from './modules/openapi';
 import { Observable, defer, finalize, firstValueFrom, from, shareReplay, tap, timeout } from 'rxjs';
-import { environment } from '../../environments/environment';
-import { LoginResponse, RefreshResponse, LogoutResponse, LoginData, RegisterData, RegisterResponse } from './auth/auth.models'
 
 const REFRESH_TIMEOUT_MS = 5000;
 
@@ -10,24 +8,19 @@ const REFRESH_TIMEOUT_MS = 5000;
 export class Auth {
   private readonly _accessToken = signal<string | null>(null);
   readonly accessToken = this._accessToken.asReadonly();
-  private readonly http = inject(HttpClient);
-  private refreshInFlight: Observable<RefreshResponse> | null = null;
+  private readonly authService = inject(AuthService);
+  private refreshInFlight: Observable<RefreshResponseDto> | null = null;
 
-  login(credentials: LoginData): Observable<LoginResponse> {
-    return this.http
-      .post<LoginResponse>(
-        `${environment.apiUrl}/auth/login`,
-        credentials,
-        { withCredentials: true },
-      )
+  login(loginDto: LoginDto): Observable<LoginResponseDto> {
+    return this.authService.authControllerLogin({ loginDto })
       .pipe(tap((res) => this._accessToken.set(res.access_token)));
   }
 
-  register(data: RegisterData): Observable<RegisterResponse> {
-    return this.http.post<RegisterResponse>(`${environment.apiUrl}/auth/register`, data);
+  register(registerDto: RegisterDto): Observable<PublicUserResponseDto> {
+    return this.authService.authControllerRegister({ registerDto });
   }
 
-  refresh(): Observable<RefreshResponse> {
+  refresh(): Observable<RefreshResponseDto> {
     if (this.refreshInFlight) {
       return this.refreshInFlight;
     }
@@ -35,13 +28,7 @@ export class Auth {
     const request$ = defer(() =>
       from(
         this.acquireRefreshLock(() =>
-          firstValueFrom(
-            this.http.post<RefreshResponse>(
-              `${environment.apiUrl}/auth/refresh`,
-              {},
-              { withCredentials: true },
-            ),
-          ),
+          firstValueFrom(this.authService.authControllerRefresh()),
         ),
       ),
     ).pipe(
@@ -55,18 +42,9 @@ export class Auth {
     return request$;
   }
 
-  logout(): Observable<LogoutResponse> {
-    const token = this._accessToken();
-    this._accessToken.set(null);
-
-    return this.http.post<LogoutResponse>(
-      `${environment.apiUrl}/auth/logout`,
-      {},
-      {
-        withCredentials: true,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      },
-    );
+  logout(): Observable<LogoutResponseDto> {
+    return this.authService.authControllerLogout()
+      .pipe(finalize(() => this._accessToken.set(null)));
   }
 
   isLoggedIn(): boolean {

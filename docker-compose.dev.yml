@@ -12,3 +12,6 @@ services:
             - dist/
         - action: rebuild
           path: ./frontend/package-lock.json
+  backend:
+    volumes:
+      - ./backend/swagger.json:/usr/src/app/swagger.json

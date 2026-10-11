@@ -10,6 +10,21 @@ To use have the tool available globally run:
 npm install -g @angular/cli
 ```
 
+## API client generation
+
+> requires JRE
+
+To generate client code based on Swagger specification first ensure that 
+the file located at `backend/swagger.json` relative to project's root is up to date.
+Then run:
+
+```bash
+npm run openapi-gen
+```
+
+The generated files will appear in `src/app/core/modules/openapi` directory.
+
+
 You can also run the `ng` commands using the included scripts in `package.json` file.
 
 ## Development server

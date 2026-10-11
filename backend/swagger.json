@@ -1,0 +1,2141 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "AppController_getHello",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Currently only returns a greeting string.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Hello World!"
+              }
+            }
+          }
+        },
+        "summary": "Root Endpoint",
+        "tags": [
+          "app"
+        ]
+      }
+    },
+    "/users/self": {
+      "get": {
+        "operationId": "UserController_getSelf",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicUserResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "description": "Authenticated user was not found."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get the current user profile",
+        "tags": [
+          "users"
+        ]
+      },
+      "patch": {
+        "operationId": "UserController_updateSelf",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicUserResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The supplied username is invalid."
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "description": "User not found."
+          },
+          "409": {
+            "description": "The username is already in use."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Update the current user profile",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/avatar": {
+      "post": {
+        "operationId": "UserController_uploadAvatar",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "Avatar image. JPEG, PNG, or WEBP; maximum size 5 MB.",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "avatar"
+                ],
+                "properties": {
+                  "avatar": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicUserResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing file, unsupported file type, or invalid image content."
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "description": "User not found."
+          },
+          "413": {
+            "description": "Avatar file exceeds the 5 MB limit."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Upload the current user avatar",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The login request is invalid."
+          },
+          "401": {
+            "description": "The email or password is invalid."
+          }
+        },
+        "summary": "Log in and receive authentication tokens",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "operationId": "AuthController_refresh",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The refresh token cookie is missing, invalid, or expired."
+          }
+        },
+        "summary": "Refresh the authentication tokens",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "operationId": "AuthController_register",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicUserResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The registration details are invalid."
+          },
+          "409": {
+            "description": "The username or email is already in use."
+          }
+        },
+        "summary": "Register a user account",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "description": "Always succeeds and clears the refresh cookie. The bearer access token is optional: it is revoked only if still valid.",
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Log out and revoke the current tokens",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/users/{id}/online": {
+      "get": {
+        "description": "Available to the user themselves or an accepted friend.",
+        "operationId": "PresenceController_isOnline",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "UUID of the target user.",
+            "schema": {
+              "format": "uuid",
+              "example": "550e8400-e29b-41d4-a716-446655440000",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnlineStatusResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The id is not a valid UUID."
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "403": {
+            "description": "The caller is not the target user or an accepted friend."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get a user’s online status",
+        "tags": [
+          "presence"
+        ]
+      }
+    },
+    "/friends": {
+      "post": {
+        "operationId": "FriendController_sendRequest",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendFriendRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendshipResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The addressee ID is invalid or is the current user."
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "description": "The target user was not found."
+          },
+          "409": {
+            "description": "A request is already pending or the users are already friends."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Send a friend request",
+        "tags": [
+          "friends"
+        ]
+      },
+      "get": {
+        "operationId": "FriendController_listFriends",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AcceptedFriendResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List the current user’s friends",
+        "tags": [
+          "friends"
+        ]
+      }
+    },
+    "/friends/{id}/accept": {
+      "post": {
+        "operationId": "FriendController_accept",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendshipResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Friendship ID is not a valid UUID."
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "403": {
+            "description": "Current user cannot respond to this request."
+          },
+          "404": {
+            "description": "Friendship not found."
+          },
+          "409": {
+            "description": "Friendship is no longer pending."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Accept a friend request",
+        "tags": [
+          "friends"
+        ]
+      }
+    },
+    "/friends/{id}/decline": {
+      "post": {
+        "operationId": "FriendController_decline",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendshipResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Friendship ID is not a valid UUID."
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "403": {
+            "description": "Current user cannot respond to this request."
+          },
+          "404": {
+            "description": "Friendship not found."
+          },
+          "409": {
+            "description": "Friendship is no longer pending."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Decline a friend request",
+        "tags": [
+          "friends"
+        ]
+      }
+    },
+    "/friends/pending": {
+      "get": {
+        "operationId": "FriendController_listPending",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FriendshipResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List incoming friend requests",
+        "tags": [
+          "friends"
+        ]
+      }
+    },
+    "/friends/pending/outgoing": {
+      "get": {
+        "operationId": "FriendController_listOutgoingPending",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FriendshipResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List outgoing friend requests",
+        "tags": [
+          "friends"
+        ]
+      }
+    },
+    "/friends/{id}": {
+      "delete": {
+        "operationId": "FriendController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendActionResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Friendship ID is not a valid UUID."
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "403": {
+            "description": "Current user cannot remove this friendship."
+          },
+          "404": {
+            "description": "Friendship not found."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Remove a friend",
+        "tags": [
+          "friends"
+        ]
+      }
+    },
+    "/games": {
+      "get": {
+        "operationId": "GameController_listGames",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GameResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List available games",
+        "tags": [
+          "games"
+        ]
+      }
+    },
+    "/users/self/games/{gameId}/settings": {
+      "get": {
+        "operationId": "GameSettingsController_read",
+        "parameters": [
+          {
+            "name": "gameId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameSettingsResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The game id is not a UUID."
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "description": "Game not found."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get the current user's settings for a game, or the defaults",
+        "tags": [
+          "games"
+        ]
+      },
+      "put": {
+        "operationId": "GameSettingsController_replace",
+        "parameters": [
+          {
+            "name": "gameId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameSettingsResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid game id, target, mode, theme or powerUps."
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "description": "Game not found."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Save the current user's settings for a game",
+        "tags": [
+          "games"
+        ]
+      }
+    },
+    "/users/self/matches": {
+      "get": {
+        "operationId": "ScoreController_listMatches",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page of match results to retrieve.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Maximum number of matches to return.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchHistoryResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The page or limit query is invalid."
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get match history of the current user",
+        "tags": [
+          "scores"
+        ]
+      }
+    },
+    "/users/self/stats": {
+      "get": {
+        "operationId": "ScoreController_getStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserStatsResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get match statistics of the current user",
+        "tags": [
+          "scores"
+        ]
+      }
+    },
+    "/leaderboard": {
+      "get": {
+        "operationId": "GamificationController_getLeaderboard",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page of leaderboard results.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of leaderboard entries per page",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeaderboardResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The page or limit query is invalid."
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get the paginated leaderboard",
+        "tags": [
+          "gamification"
+        ]
+      }
+    },
+    "/users/self/achievements": {
+      "get": {
+        "operationId": "GamificationController_getSelfAchievements",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserAchievementsResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "description": "User not found."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get the current user’s achievement overview",
+        "tags": [
+          "gamification"
+        ]
+      }
+    },
+    "/users/{id}/achievements": {
+      "get": {
+        "operationId": "GamificationController_getUserAchievements",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserAchievementsResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "User ID is not a valid UUID."
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "description": "User not found."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get a user’s achievement overview",
+        "tags": [
+          "gamification"
+        ]
+      }
+    },
+    "/chat/{peerId}": {
+      "get": {
+        "operationId": "ChatController_getConversation",
+        "parameters": [
+          {
+            "name": "peerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MessageResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Peer ID is not a valid UUID."
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "403": {
+            "description": "The current user is not friends with this peer."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get the conversation with a friend",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/users/self/profile": {
+      "get": {
+        "operationId": "ProfileController_getSelfProfile",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page of match results to retrieve.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Maximum number of matches to return.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelfProfileResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The id, page or limit is invalid."
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "description": "Authenticated user was not found."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get the profile of the current user including email",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/{id}/profile": {
+      "get": {
+        "operationId": "ProfileController_getProfile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page of match results to retrieve.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Maximum number of matches to return.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The id, page or limit is invalid."
+          },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "description": "User not found or deleted."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get the public profile of a user from the specific requester POV",
+        "tags": [
+          "users"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Transcendence API",
+    "description": "API documentation for the Transcendence backend",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [
+    {
+      "url": "/api"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "access-token": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "PublicUserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique user identifier.",
+            "format": "uuid",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "username": {
+            "type": "string",
+            "example": "player_one"
+          },
+          "email": {
+            "type": "string",
+            "example": "player@example.com",
+            "format": "email"
+          },
+          "avatar": {
+            "type": "string",
+            "description": "Avatar URL or static path.",
+            "example": "/static/avatars/default.svg"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "email",
+          "avatar"
+        ]
+      },
+      "UpdateProfileDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "New username. Whitespace is trimmed and letters are lowercased.",
+            "example": "player_two",
+            "minLength": 3,
+            "maxLength": 32
+          }
+        }
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Account email address.",
+            "example": "player@example.com",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Account password.",
+            "example": "Example-password-123",
+            "format": "password",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "LoginResponseDto": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/PublicUserResponseDto"
+          },
+          "access_token": {
+            "type": "string",
+            "description": "Access token for bearer authentication."
+          }
+        },
+        "required": [
+          "user",
+          "access_token"
+        ]
+      },
+      "RefreshResponseDto": {
+        "type": "object",
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "description": "New access token for bearer authentication."
+          }
+        },
+        "required": [
+          "access_token"
+        ]
+      },
+      "RegisterDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "Username. Leading and trailing whitespace is removed, and letters are lowercased.",
+            "example": "player_one",
+            "minLength": 3,
+            "maxLength": 32
+          },
+          "email": {
+            "type": "string",
+            "description": "Account email. Leading and trailing whitespace is removed, and letters are lowercased.",
+            "example": "player@example.com",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "description": "Password for the new account.",
+            "example": "Game-player-2026",
+            "format": "password",
+            "writeOnly": true,
+            "minLength": 8,
+            "maxLength": 72
+          }
+        },
+        "required": [
+          "username",
+          "email",
+          "password"
+        ]
+      },
+      "LogoutResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "refresh_token_revoked": {
+            "type": "boolean",
+            "description": "Whether the supplied refresh token was revoked."
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "OnlineStatusResponseDto": {
+        "type": "object",
+        "properties": {
+          "online": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the target user currently has an active connection"
+          }
+        },
+        "required": [
+          "online"
+        ]
+      },
+      "SendFriendRequestDto": {
+        "type": "object",
+        "properties": {
+          "addresseeId": {
+            "type": "string",
+            "description": "UUID of the user to send a friend request to.",
+            "example": "550e8400-e29b-41d4-a716-446655440000",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "addresseeId"
+        ]
+      },
+      "FriendshipResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "requesterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "addresseeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "declined"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "respondedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "requesterId",
+          "addresseeId",
+          "status",
+          "createdAt",
+          "respondedAt"
+        ]
+      },
+      "FriendSummaryResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string",
+            "example": "player_two"
+          },
+          "avatar": {
+            "type": "string",
+            "example": "/static/avatars/default.svg"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "avatar"
+        ]
+      },
+      "AcceptedFriendResponseDto": {
+        "type": "object",
+        "properties": {
+          "friendshipId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "declined"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "friend": {
+            "$ref": "#/components/schemas/FriendSummaryResponseDto"
+          }
+        },
+        "required": [
+          "friendshipId",
+          "status",
+          "createdAt",
+          "friend"
+        ]
+      },
+      "FriendActionResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "GameResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique game identifier.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the game.",
+            "example": "Rock Paper Scissors"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "GameSettingsResponseDto": {
+        "type": "object",
+        "properties": {
+          "gameId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "target": {
+            "type": "number",
+            "enum": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10
+            ],
+            "example": 2
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "fixed-target-score",
+              "fixed-rounds"
+            ],
+            "example": "fixed-target-score"
+          },
+          "theme": {
+            "type": "string",
+            "enum": [
+              "default",
+              "extra"
+            ],
+            "example": "default"
+          },
+          "powerUps": {
+            "type": "boolean",
+            "example": false
+          }
+        },
+        "required": [
+          "gameId",
+          "target",
+          "mode",
+          "theme",
+          "powerUps"
+        ]
+      },
+      "GameSettingsDto": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "number",
+            "enum": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10
+            ],
+            "example": 2,
+            "description": "Rounds to play (fixed-rounds) or score to reach (fixed-target-score)."
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "fixed-target-score",
+              "fixed-rounds"
+            ],
+            "example": "fixed-target-score",
+            "description": "`fixed-target-score`: first to the target; drawn rounds are replayed. `fixed-rounds`: exactly the target number of rounds; draws count; can end drawn."
+          },
+          "theme": {
+            "type": "string",
+            "enum": [
+              "default",
+              "extra"
+            ],
+            "example": "default",
+            "description": "How the game page looks. The queue ignores it."
+          },
+          "powerUps": {
+            "type": "boolean",
+            "example": false,
+            "description": "One shield and one double per player per match. Only players with the same choice are paired."
+          }
+        },
+        "required": [
+          "target",
+          "mode",
+          "theme",
+          "powerUps"
+        ]
+      },
+      "MatchOpponentResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "object",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string",
+            "example": "player_two"
+          },
+          "avatar": {
+            "type": "string",
+            "example": "/static/avatars/default.svg"
+          },
+          "isDeleted": {
+            "type": "boolean",
+            "example": false,
+            "description": "True of the opponent account has been soft-deleted."
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "avatar",
+          "isDeleted"
+        ]
+      },
+      "MatchHistoryItemResponseDto": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the match session."
+          },
+          "gameId": {
+            "type": "string",
+            "description": "Identifier of the game."
+          },
+          "gameName": {
+            "type": "string",
+            "example": "Rock Paper Scissors"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "win",
+              "lose",
+              "draw",
+              "forfeit"
+            ],
+            "example": "win"
+          },
+          "value": {
+            "type": "integer",
+            "example": 3
+          },
+          "achievedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-09-24T12:00:00.000Z"
+          },
+          "opponent": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MatchOpponentResponseDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "sessionId",
+          "gameId",
+          "gameName",
+          "outcome",
+          "value",
+          "achievedAt",
+          "opponent"
+        ]
+      },
+      "MatchHistoryResponseDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 42
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "example": 10
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MatchHistoryItemResponseDto"
+            }
+          }
+        },
+        "required": [
+          "total",
+          "page",
+          "limit",
+          "items"
+        ]
+      },
+      "GameStatsResponseDto": {
+        "type": "object",
+        "properties": {
+          "gameId": {
+            "type": "string",
+            "description": "Game identifier.",
+            "format": "uuid"
+          },
+          "gameName": {
+            "type": "string",
+            "description": "Game name.",
+            "example": "Rock Paper Scissors"
+          },
+          "played": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 5
+          },
+          "wins": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 3
+          },
+          "losses": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          },
+          "draws": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          },
+          "forfeits": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 0
+          }
+        },
+        "required": [
+          "gameId",
+          "gameName",
+          "played",
+          "wins",
+          "losses",
+          "draws",
+          "forfeits"
+        ]
+      },
+      "UserStatsResponseDto": {
+        "type": "object",
+        "properties": {
+          "played": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 5
+          },
+          "wins": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 3
+          },
+          "losses": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          },
+          "draws": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          },
+          "forfeits": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 0
+          },
+          "games": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GameStatsResponseDto"
+            }
+          }
+        },
+        "required": [
+          "played",
+          "wins",
+          "losses",
+          "draws",
+          "forfeits",
+          "games"
+        ]
+      },
+      "LeaderboardEntryResponseDto": {
+        "type": "object",
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string",
+            "example": "player_one"
+          },
+          "avatar": {
+            "type": "string",
+            "example": "/static/avatars/default.svg"
+          },
+          "xp": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 125
+          },
+          "level": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 4
+          }
+        },
+        "required": [
+          "rank",
+          "userId",
+          "username",
+          "avatar",
+          "xp",
+          "level"
+        ]
+      },
+      "LeaderboardResponseDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 42
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "example": 20
+          },
+          "totalPages": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 3
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeaderboardEntryResponseDto"
+            }
+          }
+        },
+        "required": [
+          "total",
+          "page",
+          "limit",
+          "totalPages",
+          "items"
+        ]
+      },
+      "AchievementItemResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "WIN_1"
+          },
+          "title": {
+            "type": "string",
+            "example": "First Blood"
+          },
+          "description": {
+            "type": "string",
+            "example": "Win your first game"
+          },
+          "badgeUrl": {
+            "type": "string",
+            "example": "/static/badges/svg/win-1.svg"
+          },
+          "targetWins": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1
+          },
+          "unlocked": {
+            "type": "boolean",
+            "example": true
+          },
+          "unlockedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": null
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "badgeUrl",
+          "targetWins",
+          "unlocked",
+          "unlockedAt"
+        ]
+      },
+      "UserAchievementsResponseDto": {
+        "type": "object",
+        "properties": {
+          "totalWins": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 12
+          },
+          "unlockedCount": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 3
+          },
+          "nextMilestoneWins": {
+            "type": "integer",
+            "minimum": 1,
+            "nullable": true,
+            "example": 16
+          },
+          "achievements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AchievementItemResponseDto"
+            }
+          }
+        },
+        "required": [
+          "totalWins",
+          "unlockedCount",
+          "nextMilestoneWins",
+          "achievements"
+        ]
+      },
+      "MessageResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "senderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "receiverId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "content": {
+            "type": "string",
+            "example": "Hi there!"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "senderId",
+          "receiverId",
+          "content",
+          "createdAt"
+        ]
+      },
+      "ProfileFriendshipResponseDto": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "self",
+              "none",
+              "friends",
+              "pending_outgoing",
+              "pending_incoming"
+            ],
+            "example": "friends"
+          },
+          "friendshipId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Friendship row id, null when state is self or none."
+          }
+        },
+        "required": [
+          "state",
+          "friendshipId"
+        ]
+      },
+      "SelfProfileResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string",
+            "example": "player_one"
+          },
+          "avatar": {
+            "type": "string",
+            "example": "/static/avatars/default.svg"
+          },
+          "xp": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 120
+          },
+          "level": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 10
+          },
+          "globalRank": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 3
+          },
+          "friendship": {
+            "$ref": "#/components/schemas/ProfileFriendshipResponseDto"
+          },
+          "online": {
+            "type": "boolean",
+            "description": "Present only when the caller is the user or a friend of the user."
+          },
+          "achievements": {
+            "$ref": "#/components/schemas/UserAchievementsResponseDto"
+          },
+          "userStats": {
+            "$ref": "#/components/schemas/UserStatsResponseDto"
+          },
+          "matchHistory": {
+            "$ref": "#/components/schemas/MatchHistoryResponseDto"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "player@example.com"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "avatar",
+          "xp",
+          "level",
+          "globalRank",
+          "friendship",
+          "achievements",
+          "userStats",
+          "matchHistory",
+          "email"
+        ]
+      },
+      "ProfileResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string",
+            "example": "player_one"
+          },
+          "avatar": {
+            "type": "string",
+            "example": "/static/avatars/default.svg"
+          },
+          "xp": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 120
+          },
+          "level": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 10
+          },
+          "globalRank": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 3
+          },
+          "friendship": {
+            "$ref": "#/components/schemas/ProfileFriendshipResponseDto"
+          },
+          "online": {
+            "type": "boolean",
+            "description": "Present only when the caller is the user or a friend of the user."
+          },
+          "achievements": {
+            "$ref": "#/components/schemas/UserAchievementsResponseDto"
+          },
+          "userStats": {
+            "$ref": "#/components/schemas/UserStatsResponseDto"
+          },
+          "matchHistory": {
+            "$ref": "#/components/schemas/MatchHistoryResponseDto"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "avatar",
+          "xp",
+          "level",
+          "globalRank",
+          "friendship",
+          "achievements",
+          "userStats",
+          "matchHistory"
+        ]
+      }
+    }
+  }
+}
