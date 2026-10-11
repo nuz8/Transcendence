@@ -6,12 +6,15 @@ import { Router, RouterLink } from '@angular/router';
 import { RegisterDto } from '../../../core/modules/openapi';
 import { AUTH_VALID_RULES } from '../../../core/auth/auth-validation.constants';
 import { getAuthErrorMessage } from '../../../core/auth/auth-error.util';
-import { FieldErrors } from '../../../shared/field-errors/field-errors';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 
 @Component({
-  imports: [FormField, RouterLink, FieldErrors],
+  imports: [FormField, RouterLink, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule],
   selector: 'app-register',
-  styleUrl: './register.css',
+  styleUrl: '../form.css',
   templateUrl: './register.html',
 })
 export class Register {

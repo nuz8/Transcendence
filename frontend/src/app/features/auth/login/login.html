@@ -1,33 +1,31 @@
-<form (submit)="onSubmit($event)" novalidate>
-  @if (errorMessage()) {
-    <p class="banner error-banner">{{ errorMessage() }}</p>
-  }
+<mat-card>
+  <mat-card-content>
+    <form (submit)="onSubmit($event)" novalidate>
+      @if (errorMessage()) {
+        <p class="banner error-banner">{{ errorMessage() }}</p>
+      }
 
-  <div>
-    <label>
-      Email
-      <input type="email" autocomplete="email" [formField]="loginForm.email" />
-    </label>
-    <app-field-errors
-      [errors]="loginForm.email().errors()"
-      [show]="loginForm.email().invalid() && loginForm.email().touched()"
-    />
-  </div>
+      <mat-form-field appearance="outline">
+        <mat-label>Email</mat-label>
+        <input matInput type="email" autocomplete="email" [formField]="loginForm.email" />
+        @for (error of loginForm.email().errors(); track error.kind) {
+          <mat-error>{{ error.message }}</mat-error>
+        }
+      </mat-form-field>
 
-  <div>
-    <label>
-      Password
-      <input type="password" autocomplete="current-password" [formField]="loginForm.password" />
-    </label>
-    <app-field-errors
-      [errors]="loginForm.password().errors()"
-      [show]="loginForm.password().invalid() && loginForm.password().touched()"
-    />
-  </div>
+      <mat-form-field appearance="outline">
+        <mat-label>Password</mat-label>
+        <input matInput type="password" autocomplete="current-password" [formField]="loginForm.password" />
+        @for (error of loginForm.password().errors(); track error.kind) {
+          <mat-error>{{ error.message }}</mat-error>
+        }
+      </mat-form-field>
 
-  <button type="submit" [disabled]="loginForm().invalid() || submitting()">
-    {{ submitting() ? 'Logging in…' : 'Log in' }}
-  </button>
+      <button mat-flat-button type="submit" [disabled]="loginForm().invalid() || submitting()">
+        {{ submitting() ? 'Logging in…' : 'Log in' }}
+      </button>
 
-  <p class="switch-auth">Don't have an account yet? <a routerLink="/register">Register</a></p>
-</form>
+      <p class="switch-auth">Don't have an account yet? <a routerLink="/register">Register</a></p>
+    </form>
+  </mat-card-content>
+</mat-card>

@@ -5,12 +5,15 @@ import { Auth } from '../../../core/auth'
 import { Router, RouterLink } from '@angular/router';
 import { LoginDto } from '../../../core/modules/openapi';
 import { getAuthErrorMessage } from '../../../core/auth/auth-error.util';
-import { FieldErrors } from '../../../shared/field-errors/field-errors';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 
 @Component({
-  imports: [FormField, RouterLink, FieldErrors],
+  imports: [FormField, RouterLink, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule],
   selector: 'app-login',
-  styleUrl: './login.css',
+  styleUrl: '../form.css',
   templateUrl: './login.html',
 })
 export class Login {
