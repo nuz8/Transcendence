@@ -7,6 +7,7 @@ import { GamificationModule } from "../gamification/gamification.module";
 import { ScoreModule } from "../scores/score.module";
 import { ProfileController } from "./profile.controller";
 import { ProfileService } from "./profile.service";
+import { ApiKeyModule } from "../api-keys";
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ProfileService } from "./profile.service";
     PresenceModule,
     GamificationModule,
     ScoreModule,
+    ApiKeyModule,
   ],
   controllers: [ProfileController],
   providers: [ProfileService],

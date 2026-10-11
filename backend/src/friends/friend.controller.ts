@@ -15,6 +15,7 @@ import {
 import { FriendshipResponseDto } from './dto/friendship-response.dto';
 import { AcceptedFriendResponseDto } from './dto/accepted-friend-response.dto';
 import { FriendActionResponseDto } from './dto/friend-action-response.dto';
+import { ApiKeyAccess, AuthOrApiKeyGuard, ApiKeyThrottlerGuard } from '../api-keys';
 
 interface AuthenticatedRequest {
 	user: { sub: string };
@@ -22,12 +23,13 @@ interface AuthenticatedRequest {
 
 @ApiFriendsController()
 @Controller('friends')
-@UseGuards(AuthGuard)
+@UseGuards(AuthOrApiKeyGuard, ApiKeyThrottlerGuard)
 export class FriendController {
 	constructor(private readonly friendService: FriendService) {}
 
 	@Post()
 	@ApiPostFriendRequest()
+	@ApiKeyAccess()
 	async sendRequest(
 		@Req() req: AuthenticatedRequest,
 		@Body() dto: SendFriendRequestDto,
@@ -105,6 +107,7 @@ export class FriendController {
 
 	@Delete(':id')
 	@ApiDeleteFriend()
+	@ApiKeyAccess()
 	@HttpCode(HttpStatus.OK)
 	async remove(
 		@Req() req: AuthenticatedRequest,

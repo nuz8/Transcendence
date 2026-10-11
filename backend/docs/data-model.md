@@ -73,6 +73,14 @@ erDiagram
         timestamp unlocked_at
     }
 
+    api_keys {
+        uuid id PK
+        uuid user_id FK "FK -> users.id (CASCADE)"
+        text key_hash UK
+        text prefix
+        timestamp created_at
+    }
+
     users ||--o{ scores : "plays (user)"
     users ||--o{ scores : "faces (opponent)"
     games ||--o{ scores : "records"
@@ -84,6 +92,7 @@ erDiagram
     users ||--o{ messages : "receives"
     users ||--o{ user_achievements : "unlocks"
     achievements ||--o{ user_achievements : "awarded_in"
+    users ||--o{ api_keys : "owns"
 ```
 
 ---
@@ -266,3 +275,19 @@ Junction table tracking which achievements each user has unlocked.
 - **Composite Primary Key:** `(user_id, achievement_id)`
 - **Index:** `user_achievements_user_id_idx` on `(user_id)`
 
+---
+
+### 9. `api_keys`
+API keys that let a user call the public API routes as themselves. Only a hash is stored; the key itself is shown once, at creation.
+
+| Column | Type | Constraints & Defaults | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `uuid` | Primary Key, `defaultRandom()` | Unique key identifier |
+| `user_id` | `uuid` | NOT NULL, FK -> `users(id)` ON DELETE CASCADE | The user the key acts as |
+| `key_hash` | `text` | NOT NULL | SHA-256 of the key, in hex |
+| `prefix` | `text` | NOT NULL | First characters of the key, to tell keys apart in the list |
+| `created_at` | `timestamp with time zone` | NOT NULL, default `now()` | When the key was created |
+
+**Indexes & Constraints:**
+- **Unique Index:** `api_keys_key_hash_unique` on `(key_hash)`
+- **Index:** `api_keys_user_id_idx` on `(user_id)`

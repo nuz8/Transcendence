@@ -10,15 +10,17 @@ import {
 } from "./gamification-api.decorators";
 import { LeaderboardResponseDto } from "./dto/leaderboard-response.dto";
 import { UserAchievementsResponseDto } from "./dto/user-achievements-response.dto";
+import { ApiKeyAccess, AuthOrApiKeyGuard, ApiKeyThrottlerGuard } from "../api-keys";
 
 @ApiGamificationController()
 @Controller()
-@UseGuards(AuthGuard)
+@UseGuards(AuthOrApiKeyGuard, ApiKeyThrottlerGuard)
 export class GamificationController {
   constructor(private readonly gamificationService: GamificationService) {}
 
   @Get('leaderboard')
   @ApiGetLeaderboard()
+  @ApiKeyAccess()
   async getLeaderboard(
     @Query()
     query: LeaderboardQueryDto

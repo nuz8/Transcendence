@@ -16,6 +16,7 @@ import { ChatModule } from './chat/chat.module';
 import { GamificationModule } from './gamification';
 import { PresenceModule } from './presence/presence.module';
 import { ProfileModule } from './profiles/profile.module';
+import { ApiKeyModule } from './api-keys/api-key.module';
 import { TicTacToeModule } from './games/tictactoe/tictactoe.module';
 
 @Module({
@@ -37,6 +38,7 @@ import { TicTacToeModule } from './games/tictactoe/tictactoe.module';
     ChatModule,
     GamificationModule,
     ProfileModule,
+    ApiKeyModule,
   ],
   controllers: [AppController, UserController],
   providers: [AppService],

@@ -283,3 +283,20 @@ export const userAchievementsRelations = relations(userAchievements, ({ one }) =
 		references: [achievements.id],
 	}),
 }));
+
+export const apiKeys = pgTable(
+	"api_keys",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		userId: uuid("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		keyHash: text("key_hash").notNull(),
+		prefix: text("prefix").notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+	},
+	(table) => [
+		uniqueIndex("api_keys_key_hash_unique").on(table.keyHash),
+		index("api_keys_user_id_idx").on(table.userId),
+	],
+);

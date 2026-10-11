@@ -8,9 +8,10 @@ import { GameSettingsController } from './settings/game-settings.controller';
 import { GameSettingsService } from './settings/game-settings.service';
 import { GameSettingsRepository } from './settings/game-settings.repository';
 import { ActiveMatchService } from './gateway-utils/active-match.service';
+import { ApiKeyModule } from '../api-keys';
 
 @Module({
-    imports: [AuthModule],
+    imports: [AuthModule, ApiKeyModule],
     controllers: [GameController, GameSettingsController],
     providers: [GameService, GameRepository, MatchService, GameSettingsService, GameSettingsRepository, ActiveMatchService],
     exports: [GameService, MatchService, GameSettingsService, ActiveMatchService],

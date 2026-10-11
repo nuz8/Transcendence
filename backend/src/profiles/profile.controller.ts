@@ -4,6 +4,7 @@ import { ProfileService } from "./profile.service";
 import { MatchHistoryQueryDto } from "../scores/dto/mh-query.dto";
 import { ProfileResponseDto, SelfProfileResponseDto } from "./dto/profile-response.dto";
 import { ApiGetSelfProfile, ApiGetUserProfile, ApiProfileController } from "./profile-api.decorators";
+import { ApiKeyAccess, AuthOrApiKeyGuard, ApiKeyThrottlerGuard } from "../api-keys";
 
 interface AuthenticatedRequest {
   user: {sub: string};
@@ -11,7 +12,7 @@ interface AuthenticatedRequest {
 
 @ApiProfileController()
 @Controller('users')
-@UseGuards(AuthGuard)
+@UseGuards(AuthOrApiKeyGuard, ApiKeyThrottlerGuard)
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
 
@@ -26,6 +27,7 @@ export class ProfileController {
 
   @Get(':id/profile')
   @ApiGetUserProfile()
+  @ApiKeyAccess()
   async getProfile(
     @Req() req: AuthenticatedRequest,
     @Param('id', new ParseUUIDPipe()) id: string,

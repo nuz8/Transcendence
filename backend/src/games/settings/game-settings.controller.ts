@@ -4,6 +4,7 @@ import { GameSettingsService } from './game-settings.service';
 import { GameSettingsDto } from './dto/game-settings.dto';
 import { GameSettingsResponseDto } from './dto/game-settings-response.dto';
 import { ApiGameSettingsController, ApiGetGameSettings, ApiPutGameSettings } from './game-settings-api.decorators';
+import { ApiKeyAccess, AuthOrApiKeyGuard, ApiKeyThrottlerGuard } from '../../api-keys';
 
 @ApiGameSettingsController()
 @Controller('users/self/games')
@@ -20,8 +21,9 @@ export class GameSettingsController {
         return (await this.gameSettingsService.current(req.user.sub, gameId)).toPublicData();
     }
 
-    @UseGuards(AuthGuard)
+    @UseGuards(AuthOrApiKeyGuard, ApiKeyThrottlerGuard)
     @ApiPutGameSettings()
+    @ApiKeyAccess()
     @Put(':gameId/settings')
     async replace(
         @Req() req: { user: { sub: string } },

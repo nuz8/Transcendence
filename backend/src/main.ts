@@ -38,6 +38,7 @@ async function bootstrap() {
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       'access-token',
     )
+    .addApiKey({ type: 'apiKey', name: 'X-API-KEY', in: 'header' }, 'api-key')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   const outputPath = path.resolve(process.cwd(), 'swagger.json');
