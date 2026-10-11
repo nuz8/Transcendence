@@ -11,18 +11,21 @@ The game rules needed to be tested so there is `rps.service.spec.ts`(agent gener
 ### Start the app, then:
 Get an access token:
 ```
-curl -sk -X POST https://localhost:3000/auth/register \
+curl -sk -X POST https://localhost/api/auth/register \
   -H 'Content-Type: application/json' \
   -d '{"username":"alice","email":"alice@test.com","password":"securepassword123"}'
 
-TOKEN=$(curl -sk -X POST https://localhost:3000/auth/login \
+TOKEN=$(curl -sk -X POST https://localhost/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"alice@test.com","password":"securepassword123"}' | jq -r .access_token)
 ```
-Then:
+Connect via WebSocket through Nginx:
 ```
-npx wscat -n -c wss://localhost:3000/games/rps \
-  -H "Authorization: Bearer $TOKEN"
+npx wscat -n -c wss://localhost/api/games/rps
+```
+Authenticate within 10 seconds by sending:
+```json
+{"event":"auth","data":{"token":"<access_token>"}}
 ```
 Check results after playing:
 ```

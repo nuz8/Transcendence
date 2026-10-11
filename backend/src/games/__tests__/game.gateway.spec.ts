@@ -11,6 +11,7 @@ import { SocketAuthRegistry, SOCKET_SWEEP_INTERVAL_MS } from '../../auth/socketA
 import type { WebSocket } from 'ws';
 import { ActiveMatchService } from '../gateway-utils/active-match.service';
 import { RoundClock } from '../gateway-utils/round-clock';
+import { EventEmitter } from 'node:events';
 
 const mockGamificationService = () => ({
   levelOf: jest.fn().mockResolvedValue(0),
@@ -125,7 +126,18 @@ describe('GameGateway - authentication', () => {
   let gateway: TestGateway;
 
   function fakeSocket(): WebSocket {
-    return { close: jest.fn(), send: jest.fn(), readyState: 1 } as unknown as WebSocket;
+    const socket = Object.assign(new EventEmitter(), {
+      close: jest.fn(),
+      ping: jest.fn(),
+      terminate: jest.fn(),
+      send: jest.fn(),
+      readyState: 1,
+    });
+    socket.terminate.mockImplementation(() => {
+      socket.emit('close');
+      gateway.handleDisconnect(socket as unknown as WebSocket);
+    });
+    return socket as unknown as WebSocket;
   }
 
   beforeEach(() => {
@@ -278,17 +290,19 @@ describe('GameGateway - authentication', () => {
 
     async function connect(userId: string): Promise<Player> {
       const sent: Sent[] = [];
-      const socket = {
+      const socket = Object.assign(new EventEmitter(), {
         readyState: 1,
         pause: jest.fn(),
         resume: jest.fn(),
         close: jest.fn(),
+        ping: jest.fn(),
+        terminate: jest.fn(),
         send: (raw: string) => sent.push(JSON.parse(raw) as Sent),
-      } as unknown as WebSocket;
+      });
 
-      gateway.handleConnection(socket);
-      await gateway.auth(socket, { token: userId });
-      return { socket, sent };
+      gateway.handleConnection(socket as unknown as WebSocket);
+      await gateway.auth(socket as unknown as WebSocket, { token: userId });
+      return { socket: socket as unknown as WebSocket, sent };
     }
 
     async function queue(userId: string, level: number): Promise<Player> {
@@ -460,5 +474,84 @@ describe('GameGateway - authentication', () => {
       await gateway.queue(otherTab.socket);
       expect(lastOf(otherTab).event).toBe('waiting');
     });
+  });
+});
+
+describe('GameGateway - heartbeat', () => {
+  let gateway: TestGateway;
+  let socketAuthRegistry: SocketAuthRegistry;
+
+  function heartbeatSocket(): WebSocket {
+    const socket = new EventEmitter() as EventEmitter & {
+      close: jest.Mock;
+      ping: jest.Mock;
+      terminate: jest.Mock;
+      send: jest.Mock;
+      readyState: number;
+    };
+    socket.close = jest.fn();
+    socket.ping = jest.fn();
+    socket.terminate = jest.fn(() => socket.emit('close'));
+    socket.send = jest.fn();
+    socket.readyState = 1;
+    return socket as unknown as WebSocket;
+  }
+
+  function liveSockets(): Set<WebSocket> {
+    return (gateway as unknown as { liveSockets: Set<WebSocket> }).liveSockets;
+  }
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    const denyList = new DenyList();
+    socketAuthRegistry = new SocketAuthRegistry(denyList);
+    gateway = new TestGateway(
+      {} as MatchService,
+      new SocketAuthenticator({ verifyAsync: jest.fn() } as unknown as JwtService, denyList, socketAuthRegistry),
+      {} as ScoreService,
+      {} as GamificationService,
+      new PresenceService(),
+    );
+    gateway.onModuleInit();
+  });
+
+  afterEach(() => {
+    gateway.onModuleDestroy();
+    socketAuthRegistry.onModuleDestroy();
+    jest.useRealTimers();
+  });
+
+  it('pings connected sockets on each heartbeat interval', () => {
+    const client = heartbeatSocket();
+    gateway.handleConnection(client);
+
+    jest.advanceTimersByTime(25_000);
+
+    expect(client.ping).toHaveBeenCalledTimes(1);
+    expect(client.terminate).not.toHaveBeenCalled();
+  });
+
+  it('terminates a socket that misses the pong and removes it when close fires', () => {
+    const client = heartbeatSocket();
+    gateway.handleConnection(client);
+
+    jest.advanceTimersByTime(50_000);
+
+    expect(client.ping).toHaveBeenCalledTimes(1);
+    expect(client.terminate).toHaveBeenCalledTimes(1);
+    expect(liveSockets().has(client)).toBe(false);
+  });
+
+  it('continues pinging a socket that responds with pong', () => {
+    const client = heartbeatSocket();
+    gateway.handleConnection(client);
+
+    jest.advanceTimersByTime(25_000);
+    (client as unknown as EventEmitter).emit('pong');
+    jest.advanceTimersByTime(25_000);
+
+    expect(client.ping).toHaveBeenCalledTimes(2);
+    expect(client.terminate).not.toHaveBeenCalled();
+    expect(liveSockets().has(client)).toBe(true);
   });
 });

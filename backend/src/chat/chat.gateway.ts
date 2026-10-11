@@ -1,17 +1,20 @@
 import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
 import { WebSocket } from 'ws';
 import { isUUID } from 'class-validator';
-import { Logger } from '@nestjs/common';
+import { Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { SocketAuthenticator } from '../auth/socketAuthenticator';
 import { PresenceService, type PresenceChange } from '../presence/presence.service';
 import { FriendService } from '../friends';
 
+const HEARTBEAT_INTERVAL_MS = 25_000;	// 25 seconds: less than standard 30-60s NAT router drops and Nginx read timeouts.
+type HeartbeatSocket = WebSocket & { isAlive?: boolean };	// Extends the standard WebSocket type to store our liveness flag.
 
 @WebSocketGateway({ path: '/chat' })
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit, OnModuleDestroy {
 	private readonly logger = new Logger(ChatGateway.name);
 	private readonly sockets = new Map<string, Set<WebSocket>>();
+	private heartbeatTimer: NodeJS.Timeout | null = null;
 
 	constructor(
 		private readonly chatService: ChatService,
@@ -22,7 +25,41 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 		this.presenceService.onChange((change) => this.notifyFriends(change));
 	}
 
+    // Starts the background ping/pong heartbeat loop.
+    onModuleInit(): void {
+        this.heartbeatTimer = setInterval(() => this.heartbeat(), HEARTBEAT_INTERVAL_MS);
+    }
+
+	// Clean up the timer to prevent memory leaks during tests or container stops.
+    onModuleDestroy(): void {
+        if (this.heartbeatTimer) {
+            clearInterval(this.heartbeatTimer);
+            this.heartbeatTimer = null;
+        }
+    }
+
+    // Periodically pings all authenticated chat clients and drops unresponsive ones.
+    private heartbeat(): void {
+        for (const clientSet of this.sockets.values()) {
+            for (const client of clientSet) {
+                const socket = client as HeartbeatSocket;
+                if (socket.isAlive === false) {	// If client hasn't responded to the previous ping, it's a dead/zombie connection - in this case drop it
+                    socket.terminate();			// Drop the socket connection with terminate() insetad of close() as a 2-way handshake awaited upon by close() cannot happen when the client is unresponsive/offline
+                    continue;
+                }
+                socket.isAlive = false;
+                socket.ping();
+            }
+        }
+    }
+
 	handleConnection(client: WebSocket): void {
+        const socket = client as HeartbeatSocket;
+        socket.isAlive = true;		// Mark the new connection as alive initially.
+        socket.on('pong', () => {	// When the browser replies to the ping with a pong, mark it alive again.
+            socket.isAlive = true;
+        });		
+		
 		this.socketAuthenticator.begin(client);
 	}
 

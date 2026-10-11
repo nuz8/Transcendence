@@ -15,6 +15,8 @@ import { MatchQueue, type MatchSettings, type Queued } from './gateway-utils/mat
 import { RoundClock } from './gateway-utils/round-clock';
 
 const RECONNECT_TIME_MS = 30_000;
+const HEARTBEAT_INTERVAL_MS = 25_000;	// 25 seconds: less than standard 30-60s NAT router drops and Nginx read timeouts.
+type HeartbeatSocket = WebSocket & { isAlive?: boolean };	// Extends the standard WebSocket type to store the liveness flag.
 
 type Seat = {
     userId: string;
@@ -36,7 +38,9 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(GameGateway.name);
     private readonly sessions = new Map<string, Session>();
     private readonly sessionBySocket = new Map<WebSocket, string>();
+    private readonly liveSockets = new Set<HeartbeatSocket>;
     private readonly matchQueue = new MatchQueue((settings, first, second) => this.startPairedMatch(settings, first, second));
+    private heartbeatTimer: NodeJS.Timeout | null = null;
 
     constructor(
         protected readonly matchService: MatchService,
@@ -53,24 +57,50 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
     protected readonly allowSolo: boolean = true;           // Turn this off for games that do not support solo mode (starts through queue only)
     protected readonly supportsPowerUps: boolean = true;    // Turn this off for games that do not support power-ups, which would force the setting off for every player
 
+    // Starts the background ping/pong heartbeat loop.
     onModuleInit(): void {
         this.matchQueue.start();
+        // Ping all connected clients every 25 seconds
+        this.heartbeatTimer = setInterval(() => this.heartbeat(), HEARTBEAT_INTERVAL_MS);
     }
 
+	// Clean up the timer to prevent memory leaks during tests or container stops.
     onModuleDestroy(): void {
+        if (this.heartbeatTimer) {
+            clearInterval(this.heartbeatTimer);
+        }
         this.matchQueue.stop();
         for (const [sessionId, session] of this.sessions)
             this.endSession(sessionId, session);
+        this.liveSockets.clear();
+    }
+
+    // Periodically pings all authenticated clients and drops unresponsive ones.
+    private heartbeat(): void {
+        for (const socket of this.liveSockets) {
+            if (socket.isAlive === false) { // If client hasn't responded to the previous ping, it's a dead/zombie connection - in this case drop it
+                socket.terminate();         // Drop the socket connection with terminate() insetad of close() as a 2-way handshake awaited upon by close() cannot happen when the client is unresponsive/offline
+                continue;
+            }
+            socket.isAlive = false;
+            socket.ping();
+        }
     }
 
     //====================================//
     //========Connection and login========//
     //====================================//
     handleConnection(client: WebSocket): void {
+        const socket = client as HeartbeatSocket;
+        socket.isAlive = true;
+        socket.on('pong', () => { socket.isAlive = true; });
+        this.liveSockets.add(socket);
+        socket.on('close', () => { this.liveSockets.delete(socket) });
         this.socketAuthenticator.begin(client);
     }
 
     handleDisconnect(client: WebSocket): void {
+        this.liveSockets.delete(client as HeartbeatSocket);
         this.dequeue(client);
 
         const sessionId = this.sessionBySocket.get(client);

@@ -1,6 +1,16 @@
 COMPOSE = docker compose
 DRIZ_CONFIG_PATH = ./drizzle.config.ts
 
+HOST_IP		?= $(shell ipconfig getifaddr en0 2>/dev/null || hostname -I 2>/dev/null | awk '{print $$1}')
+HOST_NAME	?= $(shell scutil --get LocalHostName 2>/dev/null || hostname -s 2>/dev/null)
+CERT_SAN	:= DNS:localhost,IP:127.0.0.1
+ifneq ($(HOST_IP),)
+CERT_SAN := $(CERT_SAN),IP:$(HOST_IP)
+endif
+ifneq ($(HOST_NAME),)
+CERT_SAN := $(CERT_SAN),DNS:$(HOST_NAME).local
+endif
+
 GREEN = \033[0;32m
 YELLOW = \033[0;33m
 BYELLOW = \033[1;33m
@@ -26,7 +36,7 @@ clean:
 	$(COMPOSE) down -v
 
 certs:
-	@sh scripts/gen-cert.sh nginx/certs localhost
+	@sh scripts/gen-cert.sh nginx/certs localhost "$(CERT_SAN)"
 	@sh scripts/gen-cert.sh backend/certs backend
 
 certs-clean:

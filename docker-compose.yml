@@ -17,8 +17,6 @@ services:
     build:
       context: ./frontend
     image: frontend
-    ports:
-      - "8080:8080"
     networks:
       - transcend-net
 
@@ -26,8 +24,6 @@ services:
     build:
       context: ./backend
     image: backend
-    ports:
-      - "${APP_PORT:-3000}:3000"
     depends_on:
       db:
         condition: service_healthy

@@ -7,9 +7,20 @@ import { SocketAuthenticator } from '../auth/socketAuthenticator';
 import type { WebSocket } from 'ws';
 import { PresenceService } from '../presence';
 import { FriendService } from '../friends';
+import { EventEmitter } from 'node:events';
 
-function fakeSocket(): WebSocket {
-  return { close: jest.fn(), send: jest.fn(), readyState: 1 } as unknown as WebSocket;
+function fakeSocket(onClose?: (client: WebSocket) => void): WebSocket {
+  const socket = Object.assign(new EventEmitter(), {
+    close: jest.fn(),
+    ping: jest.fn(),
+    terminate: jest.fn(),
+    send: jest.fn(),
+    readyState: 1,
+  });
+  socket.terminate.mockImplementation(() => socket.emit('close'));
+  if (onClose)
+    socket.on('close', () => onClose(socket as unknown as WebSocket));
+  return socket as unknown as WebSocket;
 }
 
 describe('ChatGateway', () => {
@@ -154,6 +165,51 @@ describe('ChatGateway', () => {
       expect(client.send).toHaveBeenCalledWith(
         JSON.stringify({ event: 'presence:snapshot', data: [] }),
       );
+    });
+  });
+
+  describe('heartbeat', () => {
+    beforeEach(() => gateway.onModuleInit());
+
+    afterEach(() => gateway.onModuleDestroy());
+
+    function socketsFor(userId: string): Set<WebSocket> | undefined {
+      return (gateway as unknown as { sockets: Map<string, Set<WebSocket>> }).sockets.get(userId);
+    }
+
+    it('pings authenticated sockets once per heartbeat interval', async () => {
+      const client = fakeSocket((socket) => gateway.handleDisconnect(socket));
+      await connectUser(client, 'user-1');
+
+      jest.advanceTimersByTime(25_000);
+
+      expect(client.ping).toHaveBeenCalledTimes(1);
+      expect(client.terminate).not.toHaveBeenCalled();
+    });
+
+    it('terminates a socket that misses pong and frees it when close fires', async () => {
+      const client = fakeSocket((socket) => gateway.handleDisconnect(socket));
+      await connectUser(client, 'user-1');
+
+      jest.advanceTimersByTime(50_000);
+
+      expect(client.ping).toHaveBeenCalledTimes(1);
+      expect(client.terminate).toHaveBeenCalledTimes(1);
+      expect(socketsFor('user-1')).toBeUndefined();
+      expect(presenceService.isOnline('user-1')).toBe(false);
+    });
+
+    it('keeps pinging when pong arrives between intervals', async () => {
+      const client = fakeSocket((socket) => gateway.handleDisconnect(socket));
+      await connectUser(client, 'user-1');
+
+      jest.advanceTimersByTime(25_000);
+      client.emit('pong');
+      jest.advanceTimersByTime(25_000);
+
+      expect(client.ping).toHaveBeenCalledTimes(2);
+      expect(client.terminate).not.toHaveBeenCalled();
+      expect(socketsFor('user-1')?.has(client)).toBe(true);
     });
   });
 });

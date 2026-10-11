@@ -31,13 +31,14 @@ async function bootstrap() {
     .setTitle('Transcendence API')
     .setDescription('API documentation for the Transcendence backend')
     .setVersion('1.0')
+    .addServer('/api')
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       'access-token',
     )
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('docs', app, document);
 
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
