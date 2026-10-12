@@ -1,0 +1,30 @@
+<mat-card class="leaderboard-card">
+  <mat-card-header>
+    <mat-card-title>Leaderboard</mat-card-title>
+  </mat-card-header>
+
+  <mat-card-content>
+    @if (isLoading()) {
+      <p>Loading...</p>
+    } @else {
+      <mat-list>
+        @for (entry of data(); track entry.userId) {
+          <mat-list-item>
+            <span matListItemTitle>#{{ entry.rank }} - {{ entry.username }}</span>
+            <span matListItemLine>Level {{ entry.level }} | {{ entry.xp }} XP</span>
+          </mat-list-item>
+          <mat-divider></mat-divider>
+        }
+      </mat-list>
+    }
+  </mat-card-content>
+
+  <mat-card-actions align="end">
+    <app-pagination-controls
+      [currentPage]="currentPage()"
+      [totalItems]="totalItems()"
+      [pageSize]="pageSize()"
+      (pageChange)="onPageChange($event)">
+    </app-pagination-controls>
+  </mat-card-actions>
+</mat-card>

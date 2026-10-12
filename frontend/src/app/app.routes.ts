@@ -5,14 +5,14 @@ import { authGuard } from './core/guards/auth-guard';
 import { Profile } from './features/profile/profile';
 import { TermsOfService } from './legal/terms-of-service/terms-of-service';
 import { PrivacyPolicy } from './legal/privacy-policy/privacy-policy';
-import { GameList } from './features/game-list/game-list';
 import { Rps } from './features/games/rps/rps';
 import { Ttt } from './features/games/ttt/ttt';
+import { Home } from './features/home/home';
 
 export const routes: Routes = [
 	{
 		path: '',
-		component: GameList,
+		component: Home,
 		canActivate: [authGuard],
 		title: 'Home',
 	},
