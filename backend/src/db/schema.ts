@@ -53,7 +53,7 @@ export const users = pgTable(
 		username: text("username").notNull(),
 		email: text("email").notNull(),
 		passwordHash: text("password_hash").notNull(),
-		avatar: text("avatar").notNull().default('/static/avatars/default.svg'),
+		avatar: text("avatar").notNull().default('api/static/avatars/default.svg'),
 		xp: integer("xp").notNull().default(0),
 		deletedAt: timestamp("deleted_at", {withTimezone: true}),
 	},

@@ -10,7 +10,7 @@ export class LeaderboardEntryResponseDto {
   @ApiProperty({ example: 'player_one' })
   username!: string;
 
-  @ApiProperty({ example: '/static/avatars/default.svg' })
+  @ApiProperty({ example: 'api/static/avatars/default.svg' })
   avatar!: string;
 
   @ApiProperty({ type: 'integer', minimum: 0, example: 125 })

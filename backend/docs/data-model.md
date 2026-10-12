@@ -135,7 +135,7 @@ Represents application user accounts. Supports soft deletion (`deleted_at`).
 | `username` | `text` | NOT NULL | Username (trimmed, length: 3–32 chars) |
 | `email` | `text` | NOT NULL | Email address (max 254 chars, regex-validated format) |
 | `password_hash` | `text` | NOT NULL | Bcrypt hash format check (`$2[aby]$...`) |
-| `avatar` | `text` | NOT NULL, default `'/static/avatars/default.svg'` | Path or URL to avatar image |
+| `avatar` | `text` | NOT NULL, default `'api/static/avatars/default.svg'` | Path or URL to avatar image |
 | `xp` | `integer` | NOT NULL, default `0` | Experience points earned |
 | `deleted_at` | `timestamp with time zone` | NULLABLE | Soft deletion timestamp |
 

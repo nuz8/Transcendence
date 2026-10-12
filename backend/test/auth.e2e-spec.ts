@@ -70,7 +70,7 @@ describe('Auth Registration (e2e)', () => {
     expect(res.body.id).toBeDefined();
     expect(res.body.username).toBe('e2e_user');
     expect(res.body.email).toBe('e2e_test@example.com');
-    expect(res.body.avatar).toBe('/static/avatars/default.svg');
+    expect(res.body.avatar).toBe('api/static/avatars/default.svg');
     expect(res.body.passwordHash).toBeUndefined();
 
     // Verify that created user actually exists in real PostgreSQL!
@@ -80,7 +80,7 @@ describe('Auth Registration (e2e)', () => {
       .where(eq(users.email, 'e2e_test@example.com'));
     expect(dbRows.length).toBe(1);
     expect(dbRows[0].username).toBe('e2e_user');
-    expect(dbRows[0].avatar).toBe('/static/avatars/default.svg');
+    expect(dbRows[0].avatar).toBe('api/static/avatars/default.svg');
 
 	// Verify password is saved as a bcrypt hash, never plaintext
     expect(dbRows[0].passwordHash).not.toBe('password123');
@@ -186,7 +186,7 @@ describe('Auth Registration (e2e)', () => {
     await db.delete(users).where(eq(users.email, 'race@example.com'));
   });
 
-  it('GET /static/avatars/default.svg -> serves the default avatar', () => {
+  it('serves the default avatar from the backend static route', () => {
     return request(app.getHttpServer())
       .get('/static/avatars/default.svg')
       .expect(200)

@@ -1,9 +1,9 @@
 .gitignore
-.openapi-generator-ignore
 README.md
 api.base.service.ts
 api.module.ts
 api/api.ts
+api/apiKeys.service.ts
 api/app.service.ts
 api/auth.service.ts
 api/chat.service.ts
@@ -19,6 +19,8 @@ git_push.sh
 index.ts
 model/acceptedFriendResponseDto.ts
 model/achievementItemResponseDto.ts
+model/apiKeyResponseDto.ts
+model/createdApiKeyResponseDto.ts
 model/friendActionResponseDto.ts
 model/friendSummaryResponseDto.ts
 model/friendshipResponseDto.ts

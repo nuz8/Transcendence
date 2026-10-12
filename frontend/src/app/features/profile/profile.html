@@ -1,1 +1,92 @@
-<p>profile works!</p>
+@if (profile$ | async; as profile) {
+  <main class="profile-page">
+    <mat-card>
+      <mat-card-content class="header-content">
+        <img class="avatar" [src]="profile.avatar" [alt]="profile.username + ' avatar'" />
+        <div>
+          <h1>{{ profile.username }}</h1>
+          <p>{{ profile.email }}</p>
+          <p>Level {{ profile.level }} | {{ profile.xp }} XP</p>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Stats</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="chips">
+          <mat-chip>Played {{ profile.userStats.played }}</mat-chip>
+          <mat-chip>Wins {{ profile.userStats.wins }}</mat-chip>
+          <mat-chip>Losses {{ profile.userStats.losses }}</mat-chip>
+          <mat-chip>Draws {{ profile.userStats.draws }}</mat-chip>
+          <mat-chip>Forfeits {{ profile.userStats.forfeits }}</mat-chip>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Achievements</mat-card-title>
+        <mat-card-subtitle>
+          {{ profile.achievements.unlockedCount }} / {{ profile.achievements.achievements.length }}
+          unlocked
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        @if (profile.achievements.nextMilestoneWins !== null) {
+            Next milestone: {{ profile.achievements.nextMilestoneWins }}
+            {{ profile.achievements.nextMilestoneWins === 1 ? 'win' : 'wins' }}
+        }
+
+        <mat-list>
+          @for (achievement of profile.achievements.achievements; track achievement.id) {
+            @if (achievement.unlocked) {
+              <mat-list-item>
+                <img
+                  matListItemAvatar
+                  [src]="achievement.badgeUrl"
+                  [alt]="achievement.title + ' badge'"
+                />
+                <span matListItemTitle>{{ achievement.title }}</span>
+                <span matListItemLine>{{ achievement.description }}</span>
+              </mat-list-item>
+            }
+          }
+        </mat-list>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Match History</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        @if (profile.matchHistory.items.length) {
+          <mat-list>
+            @for (match of profile.matchHistory.items; track match.sessionId) {
+              <mat-list-item>
+                <span matListItemTitle>{{ match.gameName }} - {{ match.outcome }}</span>
+                <span matListItemLine>
+                  @if (match.opponent; as opponent) {
+                    vs {{ opponent.username }} -
+                  }
+                  {{ match.achievedAt }}
+                </span>
+              </mat-list-item>
+              <mat-divider />
+            }
+          </mat-list>
+        } @else {
+          <p>No games played yet.</p>
+        }
+      </mat-card-content>
+    </mat-card>
+  </main>
+} @else {
+  <main class="loading-state">
+    <mat-progress-spinner mode="indeterminate" diameter="36" />
+    <p>Loading profile...</p>
+  </main>
+}

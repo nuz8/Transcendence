@@ -10,7 +10,7 @@ export class AchievementItemResponseDto {
   @ApiProperty({ example: 'Win your first game' })
   description!: string;
 
-  @ApiProperty({ example: '/static/badges/svg/win-1.svg' })
+  @ApiProperty({ example: 'api/static/badges/svg/win-1.svg' })
   badgeUrl!: string;
 
   @ApiProperty({ type: 'integer', minimum: 1, example: 1 })

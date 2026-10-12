@@ -6,7 +6,7 @@ const CALLER = '11111111-1111-4111-8111-111111111111';
 const TARGET = '22222222-2222-4222-8222-222222222222';
 const GAME_ID = '33333333-3333-4333-8333-333333333333';
 
-const user = { id: TARGET, username: 'target', avatar: '/static/avatars/default.svg', xp: 30 };
+const user = { id: TARGET, username: 'target', avatar: 'api/static/avatars/default.svg', xp: 30 };
 const selfUser = { ...user, email: 'target@example.com' };
 const level = 6;
 const globalRank = 3;
@@ -82,7 +82,7 @@ describe('ProfileService', () => {
       expect(profile).toMatchObject({
         id: TARGET,
         username: 'target',
-        avatar: '/static/avatars/default.svg',
+        avatar: 'api/static/avatars/default.svg',
         xp: 30,
       });
       expect(profile).not.toHaveProperty('email');

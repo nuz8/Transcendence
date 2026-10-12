@@ -56,14 +56,14 @@ describe('GamificationService', () => {
         id: 'WIN_1',
         title: 'First Blood',
         description: 'Win your first game',
-        badgeUrl: '/static/badges/svg/win-1.svg',
+        badgeUrl: 'api/static/badges/svg/win-1.svg',
         targetWins: 1,
     };
     const win2 = {
       id: 'WIN_2',
       title: 'Double Down',
       description: 'Win 2 games',
-      badgeUrl: '/static/badges/svg/win-2.svg',
+      badgeUrl: 'api/static/badges/svg/win-2.svg',
       targetWins: 2,
     };
 
@@ -210,7 +210,7 @@ describe('GamificationService', () => {
           id: 'WIN_1',
           title: 'First Blood',
           description: 'Win your first game',
-          badgeUrl: '/static/badges/svg/win-1.svg',
+          badgeUrl: 'api/static/badges/svg/win-1.svg',
           targetWins: 1,
           unlockedAt: unlockDate,
         },

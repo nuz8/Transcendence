@@ -19,7 +19,7 @@ export class PublicUserResponseDto {
 
   @ApiProperty({
     description: 'Avatar URL or static path.',
-    example: '/static/avatars/default.svg',
+    example: 'api/static/avatars/default.svg',
   })
   avatar!: string;
 }

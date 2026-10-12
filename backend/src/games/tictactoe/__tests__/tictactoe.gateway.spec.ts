@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events';
 import type { JwtService } from '@nestjs/jwt';
 import type { WebSocket } from 'ws';
 import { DenyList } from '../../../auth/denyList';
@@ -50,13 +51,20 @@ describe('TicTacToeGateway', () => {
   // Opens an authenticated fake socket that records every message sent to it.
   async function connect(userId: string): Promise<Client> {
     const sent: Sent[] = [];
-    const socket = {
-      readyState: 1, pause: jest.fn(), resume: jest.fn(), close: jest.fn(),
+    const socket = new EventEmitter();
+    Object.assign(socket, {
+      readyState: 1,
+      pause: jest.fn(),
+      resume: jest.fn(),
+      close: jest.fn(),
+      ping: jest.fn(() => socket.emit('pong')),
+      terminate: jest.fn(),
       send: (raw: string) => { sent.push(JSON.parse(raw) as Sent); },
-    } as unknown as WebSocket;
-    gateway.handleConnection(socket);
-    await gateway.auth(socket, { token: userId });
-    return { socket, sent };
+    });
+    const client = socket as unknown as WebSocket;
+    gateway.handleConnection(client);
+    await gateway.auth(client, { token: userId });
+    return { socket: client, sent };
   }
 
   const last = (c: Client) => c.sent[c.sent.length - 1];

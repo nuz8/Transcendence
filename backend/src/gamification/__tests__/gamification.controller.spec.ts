@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { GamificationController } from '../gamification.controller';
 import { GamificationService } from '../gamification.service';
-import { AuthGuard } from '../../auth/guards/auth.guard';
+import { ApiKeyThrottlerGuard, AuthOrApiKeyGuard } from '../../api-keys';
 
 describe('GamificationController', () => {
   let controller: GamificationController;
@@ -20,7 +20,9 @@ describe('GamificationController', () => {
       controllers: [GamificationController],
       providers: [{ provide: GamificationService, useValue: service }],
     })
-      .overrideGuard(AuthGuard)
+      .overrideGuard(AuthOrApiKeyGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(ApiKeyThrottlerGuard)
       .useValue({ canActivate: () => true })
       .compile();
 

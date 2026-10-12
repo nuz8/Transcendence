@@ -8,7 +8,7 @@ export class MatchOpponentResponseDto {
   @ApiProperty({ example: 'player_two' })
   username!: string;
 
-  @ApiProperty({ example: '/static/avatars/default.svg' })
+  @ApiProperty({ example: 'api/static/avatars/default.svg' })
   avatar!: string;
 
   @ApiProperty({

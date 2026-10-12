@@ -108,6 +108,9 @@ export class UsersService extends BaseService {
         // authentication (access-token) required
         localVarHeaders = this.configuration.addCredentialToHeaders('access-token', 'Authorization', localVarHeaders, 'Bearer ');
 
+        // authentication (api-key) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('api-key', 'X-API-KEY', localVarHeaders);
+
         const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
             'application/json'
         ]);

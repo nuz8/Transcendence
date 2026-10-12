@@ -122,6 +122,7 @@ export class AuthService extends BaseService {
 
     /**
      * Log out and revoke the current tokens
+     * Always succeeds and clears the refresh cookie. The bearer access token is optional: it is revoked only if still valid.
      * @endpoint post /auth/logout
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.

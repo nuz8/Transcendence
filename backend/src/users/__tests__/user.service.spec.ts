@@ -239,7 +239,7 @@ describe('UserService - Avatar Management', () => {
     it('does not unlink any file if old avatar path is outside the uploads directory', async () => {
       const userWithExternalAvatar = new UserEntity({
         ...mockUser,
-        avatar: '/static/avatars/../secrets/key.pem',
+        avatar: 'api/static/avatars/../secrets/key.pem',
       });
       userRepo.findById.mockResolvedValue(userWithExternalAvatar);
 

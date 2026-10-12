@@ -1,5 +1,7 @@
 export * from './acceptedFriendResponseDto';
 export * from './achievementItemResponseDto';
+export * from './apiKeyResponseDto';
+export * from './createdApiKeyResponseDto';
 export * from './friendActionResponseDto';
 export * from './friendSummaryResponseDto';
 export * from './friendshipResponseDto';

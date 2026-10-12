@@ -145,14 +145,14 @@ describe('Users Self (e2e)', () => {
         .expect(201);
 
       expect(response.body.avatar).toMatch(
-        /^\/static\/avatars\/uploads\/[0-9a-f-]+\.png$/,
+        /^api\/static\/avatars\/uploads\/[0-9a-f-]+\.png$/,
       );
 
       const filePath = trackUploadedAvatar(response.body.avatar);
       await expect(fs.stat(filePath)).resolves.toBeDefined();
 
       await request(app.getHttpServer())
-        .get(response.body.avatar)
+        .get(response.body.avatar.replace(/^api/, ''))
         .expect(200)
         .expect('Content-Type', /image\/png/);
     });

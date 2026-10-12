@@ -1,0 +1,33 @@
+.profile-page {
+	display: grid;
+	gap: 1rem;
+	max-width: 860px;
+	margin: 1.5rem auto;
+	padding: 0 1rem 1.5rem;
+}
+
+.header-content {
+	display: flex;
+	gap: 1rem;
+	align-items: center;
+}
+
+.avatar {
+	width: 88px;
+	height: 88px;
+	border-radius: 50%;
+	object-fit: cover;
+}
+
+.chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+.loading-state {
+	min-height: 40vh;
+	display: grid;
+	place-items: center;
+	gap: 0.75rem;
+}

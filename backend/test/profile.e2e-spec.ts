@@ -275,7 +275,7 @@ describe('User profile (e2e)', () => {
         opponent: {
           id: ids.viewer,
           username: 'profile_e2e_viewer',
-          avatar: '/static/avatars/default.svg',
+          avatar: 'api/static/avatars/default.svg',
           isDeleted: false,
         },
       });
@@ -299,7 +299,7 @@ describe('User profile (e2e)', () => {
         expect(res.body.matchHistory.items[0].opponent).toEqual({
           id: ids.viewer,
           username: 'Deleted User',
-          avatar: '/static/avatars/deleted.svg',
+          avatar: 'api/static/avatars/deleted.svg',
           isDeleted: true,
         });
       } finally {
@@ -329,7 +329,7 @@ describe('User profile (e2e)', () => {
         expect(botMatch.opponent).toEqual({
           id: null,
           username: 'Bot',
-          avatar: '/static/avatars/bot.svg',
+          avatar: 'api/static/avatars/bot.svg',
           isDeleted: false,
         });
       } finally {

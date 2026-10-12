@@ -1,3 +1,5 @@
+export * from './apiKeys.service';
+import { ApiKeysService } from './apiKeys.service';
 export * from './app.service';
 import { AppService } from './app.service';
 export * from './auth.service';
@@ -16,4 +18,4 @@ export * from './scores.service';
 import { ScoresService } from './scores.service';
 export * from './users.service';
 import { UsersService } from './users.service';
-export const APIS = [AppService, AuthService, ChatService, FriendsService, GamesService, GamificationService, PresenceService, ScoresService, UsersService];
+export const APIS = [ApiKeysService, AppService, AuthService, ChatService, FriendsService, GamesService, GamificationService, PresenceService, ScoresService, UsersService];

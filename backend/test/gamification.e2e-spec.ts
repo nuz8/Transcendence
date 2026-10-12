@@ -270,7 +270,7 @@ describe('Gamification (e2e)', () => {
       for (const a of res.body.achievements) {
         expect(a.unlocked).toBe(false);
         expect(a.unlockedAt).toBeNull();
-        expect(a.badgeUrl).toMatch(/^\/static\/badges\/svg\/win-\d+\.svg$/);
+        expect(a.badgeUrl).toMatch(/^api\/static\/badges\/svg\/win-\d+\.svg$/);
       }
     });
 

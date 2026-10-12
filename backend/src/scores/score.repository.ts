@@ -5,6 +5,7 @@ import { scores, users } from '../db/schema';
 import { ScoreEntity } from "./score.entity";
 import { desc, eq, count, sql, isNull, and } from 'drizzle-orm';
 import { type MatchOutcome } from "./score.constants";
+import { AVATAR_CONSTANTS } from '../users/user.constants';
 
 export type ScoreCount = {
     gameId: string;
@@ -84,7 +85,7 @@ export class ScoreRepository {
                 opponent = {
                     id: null,
                     username: 'Bot',
-                    avatar: '/static/avatars/bot.svg',
+                    avatar: AVATAR_CONSTANTS.BOT_AVATAR_PATH,
                     isDeleted: false,
                 }
             } else if (
@@ -95,7 +96,7 @@ export class ScoreRepository {
                 opponent = {
                     id: row.opponentId,
                     username: 'Deleted User',
-                    avatar: '/static/avatars/deleted.svg',
+                    avatar: AVATAR_CONSTANTS.DELETED_AVATAR_PATH,
                     isDeleted: true,
                 };
             } else {
