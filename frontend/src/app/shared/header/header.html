@@ -1,19 +1,12 @@
 <nav>
-	<div>
-		<a routerLink="/">
-			Home
-		</a>
-	</div>
-	@if (isUserLoggedIn()) {
-    <div>
-			<a routerLink="/profile">
-				My account
-			</a>
-		</div>
-		<div>
-			<button type="button" (click)="onLogout()">
-				Logout
-			</button>
-		</div>
-	}
+	<mat-toolbar>
+		<span>Game Arcade</span>
+
+  	<span class="spacer"></span>
+		<a routerLink="/" mat-button>Home</a>
+		@if (isUserLoggedIn()) {
+			<a routerLink="/profile" mat-button>My account</a>
+			<button (click)="onLogout()" matButton="outlined">Logout</button>
+		}
+	</mat-toolbar>
 </nav>

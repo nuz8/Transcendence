@@ -1,9 +1,11 @@
 import { Component, inject, computed } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { Auth } from '../../core/auth'
+import { Auth } from '../../core/auth';
+import { MatButtonModule } from '@angular/material/button';
+import { MatToolbarModule } from '@angular/material/toolbar';
 
 @Component({
-  imports: [RouterLink],
+  imports: [RouterLink, MatToolbarModule, MatButtonModule],
   selector: 'app-header',
   styleUrl: './header.css',
   templateUrl: './header.html',
