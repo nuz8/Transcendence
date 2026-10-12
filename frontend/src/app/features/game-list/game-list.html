@@ -1,0 +1,15 @@
+@if (games$ | async; as games) {
+  <h3 matSubheader>Games</h3>
+    <section class="results">
+      @for (game of games; track game.id) {
+        <mat-card class="game-card" appearance="outlined">
+          <mat-card-header>
+            <mat-card-title>{{ game.name }}</mat-card-title>
+          </mat-card-header>
+          <mat-card-actions>
+            <button (click)="onClick(game.id)" matButton>Play!</button>
+          </mat-card-actions>
+        </mat-card>
+      }
+    </section>
+}

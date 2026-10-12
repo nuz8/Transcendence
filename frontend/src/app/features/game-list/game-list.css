@@ -1,0 +1,9 @@
+.results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.game-card {
+  width: 250px;
+}
