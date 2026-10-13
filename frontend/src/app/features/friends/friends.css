@@ -1,0 +1,25 @@
+mat-list a[mat-list-item] {
+  cursor: pointer;
+}
+
+.friends-page {
+  display: grid;
+  gap: 1rem;
+  max-width: 720px;
+  margin: 1.5rem auto;
+  padding: 0 1rem 1.5rem;
+}
+
+.friend {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.friend a {
+  flex: 1;
+}
+
+.hint {
+  color: var(--mat-sys-on-surface-variant);
+}

@@ -1,0 +1,56 @@
+<main class="friends-page">
+    @if (requesters().length) {
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Friend requests</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-list>
+          @for (profile of requesters(); track profile.id) {
+            <a mat-list-item [routerLink]="['/profile', profile.id]">
+              <img matListItemAvatar [src]="profile.avatar" alt="" />
+              <span matListItemTitle>{{ profile.username }}</span>
+              <span matListItemLine>Wants to be your friend! Go to their profile to accept or decline</span>
+            </a>
+            <mat-divider></mat-divider>
+          }
+        </mat-list>
+      </mat-card-content>
+    </mat-card>
+  }
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Friends</mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+      @if (isLoading()) {
+        <p>Loading...</p>
+      } @else {
+        <mat-list>
+          @for (row of data(); track row.friendshipId) {
+            <div class="friend">
+              <a mat-list-item [routerLink]="['/profile', row.friend.id]">
+                <img matListItemAvatar [src]="row.friend.avatar" alt="" />
+                <span matListItemTitle>{{ row.friend.username }}</span>
+              </a>
+              <button matButton (click)="remove(row)">Remove friend</button>
+            </div>
+            <mat-divider></mat-divider>
+          } @empty {
+            <p class="hint">No friends yet. Find players on the leaderboard and invite them from their profile.</p>
+          }
+        </mat-list>
+      }
+    </mat-card-content>
+
+    <mat-card-actions align="end">
+      <app-pagination-controls
+        [currentPage]="currentPage()"
+        [totalItems]="totalItems()"
+        [pageSize]="pageSize()"
+        (pageChange)="onPageChange($event)">
+      </app-pagination-controls>
+    </mat-card-actions>
+  </mat-card>
+</main>

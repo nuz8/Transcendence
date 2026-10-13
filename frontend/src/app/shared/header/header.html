@@ -5,6 +5,7 @@
   	<span class="spacer"></span>
 		<a routerLink="/" mat-button>Home</a>
 		@if (isUserLoggedIn()) {
+			<a routerLink="/friends" mat-button>Friends</a>
 			<a routerLink="/profile" mat-button>My account</a>
 			<button (click)="onLogout()" matButton="outlined">Logout</button>
 		}

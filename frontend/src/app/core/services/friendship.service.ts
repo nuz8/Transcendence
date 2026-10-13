@@ -2,6 +2,7 @@ import { Service, inject } from '@angular/core';
 import type { Observable } from 'rxjs';
 import {
   FriendsService,
+  type AcceptedFriendResponseDto,
   type FriendActionResponseDto,
   type FriendshipResponseDto,
 } from '../modules/openapi';
@@ -26,5 +27,13 @@ export class FriendshipService {
 
   removeFriend(friendshipId: string): Observable<FriendActionResponseDto> {
     return this.friendsApiClient.friendControllerRemove({ id: friendshipId });
+  }
+
+  listFriends(): Observable<AcceptedFriendResponseDto[]> {
+    return this.friendsApiClient.friendControllerListFriends();
+  }
+
+  listIncoming(): Observable<FriendshipResponseDto[]> {
+    return this.friendsApiClient.friendControllerListPending();
   }
 }

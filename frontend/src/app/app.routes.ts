@@ -8,6 +8,7 @@ import { PrivacyPolicy } from './legal/privacy-policy/privacy-policy';
 import { Rps } from './features/games/rps/rps';
 import { Ttt } from './features/games/ttt/ttt';
 import { Home } from './features/home/home';
+import { Friends } from './features/friends/friends';
 
 export const routes: Routes = [
 	{
@@ -59,5 +60,11 @@ export const routes: Routes = [
 		component: Ttt,
 		canActivate: [authGuard],
 		title: 'Tic-Tac-Toe',
+	},
+	{
+		path: 'friends',
+		component: Friends,
+		canActivate: [authGuard],
+		title: 'Friends',
 	}
 ];
