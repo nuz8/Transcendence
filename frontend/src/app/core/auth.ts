@@ -1,6 +1,7 @@
-import { Injectable, signal, inject } from '@angular/core';
+import { Injectable, signal, inject, computed } from '@angular/core';
 import { AuthService, LoginDto, LoginResponseDto, LogoutResponseDto, PublicUserResponseDto, RefreshResponseDto, RegisterDto } from './modules/openapi';
 import { Observable, defer, finalize, firstValueFrom, from, shareReplay, tap, timeout } from 'rxjs';
+import { getTokenSubject } from './auth/token-expiry.util';
 
 const REFRESH_TIMEOUT_MS = 5000;
 
@@ -8,6 +9,10 @@ const REFRESH_TIMEOUT_MS = 5000;
 export class Auth {
   private readonly _accessToken = signal<string | null>(null);
   readonly accessToken = this._accessToken.asReadonly();
+  readonly userId = computed(() => {
+    const token = this._accessToken();
+    return token ? getTokenSubject(token) : null;
+  });
   private readonly authService = inject(AuthService);
   private refreshInFlight: Observable<RefreshResponseDto> | null = null;
 

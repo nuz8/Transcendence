@@ -12,10 +12,12 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatButtonModule } from '@angular/material/button';
 import { BasePaginationComponent } from '../../shared/pagination/pagination-base';
 import { PaginationControlsComponent } from '../../shared/pagination/pagination-controls';
+import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-leaderboard',
   imports: [
+    RouterLink,
     PaginationControlsComponent,
     MatCardModule,
     MatListModule,
@@ -23,6 +25,7 @@ import { PaginationControlsComponent } from '../../shared/pagination/pagination-
     MatButtonModule,
   ],
   templateUrl: './leaderboard.html',
+  styleUrl: './leaderboard.css'
 })
 export class Leaderboard extends BasePaginationComponent<LeaderboardEntryResponseDto> implements OnInit {
   private readonly leaderboardService = inject(LeaderboardService);

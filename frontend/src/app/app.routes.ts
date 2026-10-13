@@ -23,6 +23,12 @@ export const routes: Routes = [
 		title: 'Profile',
 	},
 	{
+		path: 'profile/:id',
+		component: Profile,
+		canActivate: [authGuard],
+		title: 'Profile',
+	},
+	{
 		path: 'login',
 		component: Login,
 		title: 'Login',

@@ -1,11 +1,42 @@
-@if (profile$ | async; as profile) {
+@if (profile$ | async; as profileView) {
+  @let profile = profileView.profile;
   <main class="profile-page">
     <mat-card>
       <mat-card-content class="header-content">
         <img class="avatar" [src]="profile.avatar" [alt]="profile.username + ' avatar'" />
         <div>
           <h1>{{ profile.username }}</h1>
-          <p>{{ profile.email }}</p>
+          @if (!profileView.isSelf) {
+            @switch (profile.friendship.state) {
+              @case ('none') {
+                <button matButton="filled" [disabled]="friendshipActionPending" (click)="performFriendshipAction(profile, 'invite')">
+                  Invite
+                </button>
+              }
+              @case ('friends') {
+                <button matButton="outlined" [disabled]="friendshipActionPending" (click)="performFriendshipAction(profile, 'remove')">
+                  Remove
+                </button>
+              }
+              @case ('pending_outgoing') {
+                <button matButton disabled>Pending</button>
+              }
+              @case ('pending_incoming') {
+                <button matButton="filled" [disabled]="friendshipActionPending" (click)="performFriendshipAction(profile, 'accept')">
+                  Accept
+                </button>
+                <button matButton="outlined" [disabled]="friendshipActionPending" (click)="performFriendshipAction(profile, 'reject')">
+                  Reject
+                </button>
+              }
+            }
+          }
+          @if (profileView.isSelf) {
+            <p>{{ profileView.profile.email }}</p>
+          }
+          @if (!profileView.isSelf && profile.friendship.state === 'friends' && profile.online !== undefined) {
+            <p>{{ profile.online ? 'Online' : 'Offline' }}</p>
+          }
           <p>Level {{ profile.level }} | {{ profile.xp }} XP</p>
         </div>
       </mat-card-content>

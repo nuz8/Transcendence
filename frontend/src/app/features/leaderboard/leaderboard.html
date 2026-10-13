@@ -9,10 +9,13 @@
     } @else {
       <mat-list>
         @for (entry of data(); track entry.userId) {
-          <mat-list-item>
+          <a
+            mat-list-item 
+            [routerLink]="['/profile', entry.userId]"
+            class="leaderboard-item">
             <span matListItemTitle>#{{ entry.rank }} - {{ entry.username }}</span>
             <span matListItemLine>Level {{ entry.level }} | {{ entry.xp }} XP</span>
-          </mat-list-item>
+          </a>
           <mat-divider></mat-divider>
         }
       </mat-list>

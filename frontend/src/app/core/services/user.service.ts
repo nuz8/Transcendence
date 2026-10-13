@@ -1,5 +1,5 @@
 import { Service, inject } from '@angular/core';
-import { SelfProfileResponseDto, UsersService } from '../modules/openapi';
+import { ProfileResponseDto, SelfProfileResponseDto, UsersService } from '../modules/openapi';
 import type { Observable } from 'rxjs';
 
 @Service()
@@ -8,5 +8,9 @@ export class UserService {
 
   getSelfProfile(): Observable<SelfProfileResponseDto> {
     return this.userApiClient.profileControllerGetSelfProfile();
+  }
+
+  getUserPorfile(userId: string): Observable<ProfileResponseDto> {
+    return this.userApiClient.profileControllerGetProfile({ id: userId })
   }
 }
