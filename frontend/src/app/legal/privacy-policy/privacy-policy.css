@@ -1,0 +1,36 @@
+:host {
+    display: block;
+    padding: 0 1rem;
+}
+
+mat-card {
+    max-width: 720px;
+    margin: 1.5rem auto
+}
+
+mat-card-content {
+    font: var(--mat-sys-body-large);
+}
+
+h1 {
+  margin: 0;
+  font: var(--mat-sys-headline-medium);
+}
+
+h2 {
+  margin: 0 0 0.5rem;
+  font: var(--mat-sys-title-large);
+}
+
+section {
+  padding: 1rem 0;
+}
+
+p,
+ul {
+  margin: 0.5rem 0 0;
+}
+
+a {
+  color: var(--mat-sys-primary);
+}
