@@ -11,6 +11,10 @@ import {
 export class FriendshipService {
   private readonly friendsApiClient = inject(FriendsService);
 
+  listFriends(): Observable<AcceptedFriendResponseDto[]> {
+    return this.friendsApiClient.friendControllerListFriends();
+  }
+
   sendRequest(userId: string): Observable<FriendshipResponseDto> {
     return this.friendsApiClient.friendControllerSendRequest({
       sendFriendRequestDto: { addresseeId: userId },

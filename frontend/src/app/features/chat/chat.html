@@ -1,0 +1,66 @@
+<div class="chat-widget">
+  @if (!expanded()) {
+    <button class="toggle-button" matButton="filled" (click)="expanded.set(true)">Chat</button>
+  } @else {
+    <section class="panel">
+      <header class="panel-header">
+        @if (selectedFriend()) {
+          <button class="back-button" matButton (click)="backToList()">‹ Friends</button>
+          <span class="title">{{ selectedFriend()!.friend.username }}</span>
+        } @else {
+          <span class="title">Chat</span>
+        }
+        <span class="spacer"></span>
+        <button class="minimize-button" matButton (click)="expanded.set(false)" aria-label="Minimize chat">—</button>
+      </header>
+
+      @if (!selectedFriend()) {
+        <mat-nav-list class="friend-list">
+          @if (loadingFriends()) {
+            <div class="centered">
+              <mat-progress-spinner mode="indeterminate" diameter="32" />
+            </div>
+          } @else if (friends().length === 0) {
+            <p class="empty-hint">Add friends to start chatting.</p>
+          } @else {
+            @for (friend of friends(); track friend.friendshipId) {
+              <mat-list-item (click)="selectFriend(friend)">
+                <img matListItemAvatar [src]="friend.friend.avatar" [alt]="friend.friend.username + ' avatar'" />
+                <span matListItemTitle>{{ friend.friend.username }}</span>
+              </mat-list-item>
+            }
+          }
+        </mat-nav-list>
+      } @else {
+        <div class="messages">
+          @if (loadingMessages()) {
+            <div class="centered">
+              <mat-progress-spinner mode="indeterminate" diameter="32" />
+            </div>
+          } @else {
+            @for (message of messages(); track message.id) {
+              <div class="message" [class.own]="isOwnMessage(message)">
+                <p>{{ message.content }}</p>
+              </div>
+            }
+          }
+          <div #messagesEnd></div>
+        </div>
+
+        <form class="composer" (ngSubmit)="send()">
+          <mat-form-field class="draft-field" appearance="outline">
+            <input
+              matInput
+              placeholder="Message"
+              [ngModel]="draft()"
+              (ngModelChange)="draft.set($event)"
+              name="draft"
+              autocomplete="off"
+            />
+          </mat-form-field>
+          <button matButton="filled" type="submit" [disabled]="!connected()">Send</button>
+        </form>
+      }
+    </section>
+  }
+</div>

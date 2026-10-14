@@ -7,7 +7,7 @@ import { authInterceptor } from './core/auth.interceptor';
 import { initAuth } from './core/auth-initializer';
 import { AuthRefreshScheduler } from './core/auth-refresh-scheduler';
 import { environment } from '../environments/environment';
-import { PresenceSocket } from './core/presence-socket';
+import { ChatSocket } from './core/chat-socket';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -20,6 +20,6 @@ export const appConfig: ApplicationConfig = {
     }),
     provideAppInitializer(initAuth),
     provideAppInitializer(() => { inject(AuthRefreshScheduler); }),
-    provideAppInitializer(() => { inject(PresenceSocket)}),
+    provideAppInitializer(() => { inject(ChatSocket)}),
   ]
 };

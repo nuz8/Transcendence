@@ -2,4 +2,7 @@
 <div>
 	<router-outlet />
 </div>
+@if (authService.isLoggedIn()) {
+	<app-chat />
+}
 <app-footer />

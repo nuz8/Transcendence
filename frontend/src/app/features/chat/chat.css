@@ -1,0 +1,88 @@
+.chat-widget {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  height: 420px;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: var(--mat-sys-surface, #fff);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--mat-sys-outline-variant, #ccc);
+}
+
+.title {
+  font-weight: 500;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.friend-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.empty-hint {
+  padding: 1rem;
+  text-align: center;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 0.75rem;
+}
+
+.message {
+  max-width: 80%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 1rem;
+  background: var(--mat-sys-surface-container, #eee);
+  align-self: flex-start;
+}
+
+.message.own {
+  align-self: flex-end;
+  background: var(--mat-sys-primary-container, #cfe3ff);
+}
+
+.message p {
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+.composer {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0 0.75rem 0.75rem;
+}
+
+.draft-field {
+  flex: 1;
+}
+
+.centered {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  min-height: 10rem;
+}
