@@ -12,11 +12,48 @@
 	align-items: center;
 }
 
+.username-row {
+	display: flex;
+	align-items: center;
+	min-height: 72px;
+}
+
+.username-form {
+	display: flex;
+	align-items: center;
+	height: 56px;
+}
+
+.username-title {
+	height: 56px;
+	display: flex;
+	align-items: center;
+	margin: 0;
+}
+
 .avatar {
 	width: 88px;
 	height: 88px;
 	border-radius: 50%;
 	object-fit: cover;
+}
+
+.avatar-wrapper {
+	position: relative;
+	width: 88px;
+	height: 88px;
+	flex-shrink: 0;
+}
+
+.avatar-input {
+	display: none;
+}
+
+.avatar-upload-button {
+	position: absolute;
+	bottom: -4px;
+	right: -4px;
+	background: var(--mat-sys-surface-container-high);
 }
 
 .chips {

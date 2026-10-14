@@ -13,4 +13,12 @@ export class UserService {
   getUserPorfile(userId: string): Observable<ProfileResponseDto> {
     return this.userApiClient.profileControllerGetProfile({ id: userId })
   }
+
+  updateUsername(username: string) {
+    return this.userApiClient.userControllerUpdateSelf({ updateProfileDto: { username } });
+  }
+
+  uploadAvatar(avatar: Blob) {
+    return this.userApiClient.userControllerUploadAvatar({ avatar });
+  }
 }

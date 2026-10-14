@@ -3,9 +3,69 @@
   <main class="profile-page">
     <mat-card>
       <mat-card-content class="header-content">
-        <img class="avatar" [src]="profile.avatar" [alt]="profile.username + ' avatar'" />
+        <div class="avatar-wrapper">
+          <img class="avatar" [src]="profile.avatar" [alt]="profile.username + ' avatar'" />
+          @if (profileView.isSelf) {
+            <input
+              #avatarInput
+              type="file"
+              class="avatar-input"
+              accept="image/jpeg,image/png,image/webp"
+              (change)="onAvatarSelected($event)"
+            />
+            <button
+              mat-icon-button
+              class="avatar-upload-button"
+              aria-label="Upload avatar"
+              [disabled]="avatarUploadPending()"
+              (click)="avatarInput.click()"
+            >
+              @if (avatarUploadPending()) {
+                <mat-icon>sync</mat-icon>
+              } @else {
+                <mat-icon>person_edit</mat-icon>
+              }
+            </button>
+          }
+        </div>
         <div>
-          <h1>{{ profile.username }}</h1>
+          @if (profileView.isSelf && avatarError()) {
+            <p role="alert">{{ avatarError() }}</p>
+          }
+          <div class="username-row">
+            @if (profileView.isSelf && isEditMode()) {
+              <form class="username-form" (submit)="submitUsername($event)" novalidate>
+                <mat-form-field class="username-field" appearance="outline">
+                  <mat-label>Username</mat-label>
+                  <input matInput type="text" autocomplete="nickname" [formField]="usernameForm.username" />
+                  @for (error of usernameForm.username().errors(); track error.kind) {
+                    <mat-error>{{ error.message }}</mat-error>
+                  }
+                </mat-form-field>
+                <button mat-icon-button type="submit" aria-label="Save username" [disabled]="usernameForm().invalid() || usernameUpdatePending()">
+                  @if (usernameUpdatePending()) {
+                    <mat-icon>sync</mat-icon>
+                  } @else {
+                    <mat-icon>check</mat-icon>
+                  }
+                </button>
+              </form>
+            } @else {
+              <h1 class="username-title">{{ profile.username }}</h1>
+            }
+            @if (profileView.isSelf) {
+              <button mat-icon-button [attr.aria-label]="isEditMode() ? 'Cancel username edit' : 'Edit username'" [disabled]="usernameUpdatePending()" (click)="toggleEdit(profile.username)">
+                @if (!isEditMode()) {
+                  <mat-icon>edit</mat-icon>
+                } @else {
+                  <mat-icon>close</mat-icon>
+                }
+              </button>
+            }
+          </div>
+          @if (profileView.isSelf && isEditMode() && usernameError()) {
+            <p role="alert">{{ usernameError() }}</p>
+          }
           @if (!profileView.isSelf) {
             @switch (profile.friendship.state) {
               @case ('none') {
