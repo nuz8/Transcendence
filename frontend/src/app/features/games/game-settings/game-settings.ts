@@ -23,14 +23,14 @@ export class GameSettings implements OnInit {
     protected readonly modes = GameSettingsDto.ModeEnum;
 
     ngOnInit(): void {
-        this.gameSettingsService.get(this.gameId()).subscribe((settings) => this.settings.set(settings));
+        this.gameSettingsService.getSettings(this.gameId()).subscribe((settings) => this.settings.set(settings));
         
     }
 
     protected save(current: GameSettingsResponseDto, change: Partial<Choices>): void {
         const { gameId, ...choices } = { ...current, ...change };
         this.settings.set({ gameId, ...choices });
-        this.gameSettingsService.put(gameId, choices).subscribe({
+        this.gameSettingsService.replaceSettings(gameId, choices).subscribe({
             next: (saved) => this.settings.set(saved),
             error: () => this.settings.set(current),
         });
