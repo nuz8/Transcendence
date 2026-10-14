@@ -1,5 +1,4 @@
 import { Controller, Get, Param, ParseUUIDPipe, Query, Req, UseGuards } from "@nestjs/common";
-import { AuthGuard } from "../auth/guards/auth.guard";
 import { ProfileService } from "./profile.service";
 import { MatchHistoryQueryDto } from "../scores/dto/mh-query.dto";
 import { ProfileResponseDto, SelfProfileResponseDto } from "./dto/profile-response.dto";

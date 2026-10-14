@@ -1,6 +1,5 @@
 import { Controller, Get, Param, ParseUUIDPipe, Query, Req, UseGuards } from "@nestjs/common";
-import { AuthGuard } from "../auth/guards/auth.guard";
-import { GamificationService, LeaderboardResponse, UserAchievementsResponse } from "./gamification.service";
+import { GamificationService } from "./gamification.service";
 import { LeaderboardQueryDto } from "./dto/leaderboard-query.dto";
 import {
   ApiGamificationController,

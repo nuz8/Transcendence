@@ -1,5 +1,4 @@
 import { Controller, Post, Get, Delete, Body, Param, Req, UseGuards, HttpCode, HttpStatus, BadRequestException, NotFoundException, ForbiddenException, ConflictException, ParseUUIDPipe } from '@nestjs/common';
-import { AuthGuard } from '../auth/guards/auth.guard';
 import { FriendService } from './friend.service';
 import { SendFriendRequestDto } from './dto/friend-request.dto';
 import {
