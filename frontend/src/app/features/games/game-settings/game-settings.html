@@ -1,48 +1,50 @@
-<mat-card appearance="outlined">
-  <mat-card-header>
-    <mat-card-title>Settings</mat-card-title>
-  </mat-card-header>
+<mat-expansion-panel [expanded]="expanded()" (expandedChange)="expanded.set($event)" [disabled]="locked()">
 
-  <mat-card-content>
-    @if (settings(); as current) {
-      <section>
-        <h3 id="mode-heading">Mode</h3>
-        <mat-button-toggle-group
-          aria-labelledby="mode-heading"
-          [value]="current.mode"
-          (change)="save(current, { mode: $event.value })">
-          <mat-button-toggle [value]="modes.FixedTargetScore">First to a score</mat-button-toggle>
-          <mat-button-toggle [value]="modes.FixedRounds">Fixed rounds</mat-button-toggle>
-        </mat-button-toggle-group>
-        <p class="sentence">
-          {{ current.mode === modes.FixedRounds ? 'Play' : 'First to' }}
-          <mat-form-field class="target" appearance="outline" subscriptSizing="dynamic">
-            <mat-select
-              [aria-label]="current.mode === modes.FixedRounds ? 'Rounds to play' : 'Points to win'"
-              [value]="current.target"
-              (selectionChange)="save(current, { target: $event.value })">
-              @for (target of targets; track target) {
-                <mat-option [value]="target">{{ target }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-          {{ current.mode === modes.FixedRounds ? 'rounds' : 'points' }}
-        </p>
-      </section>
-
-      @if (supportsPowerUps()) {
-        <section>
-          <h3 id="power-ups-heading">Power-ups</h3>
-          <mat-button-toggle-group
-            aria-labelledby="power-ups-heading"
-            [value]="current.powerUps"
-            (change)="save(current, { powerUps: $event.value })">
-            <mat-button-toggle [value]="false">Off</mat-button-toggle>
-            <mat-button-toggle [value]="true">On</mat-button-toggle>
-          </mat-button-toggle-group>
-          <p class="hint">One shield and one double per match</p>
-        </section>
-      }
+  <mat-expansion-panel-header>
+    <mat-panel-title>Settings</mat-panel-title>
+    @if (settings() && expanded()) {
+      <mat-panel-description>{{ summary() }}</mat-panel-description>
     }
-  </mat-card-content>
-</mat-card>
+  </mat-expansion-panel-header>
+
+  @if (settings(); as current) {
+    <section>
+      <h3 id="mode-heading">Mode</h3>
+      <mat-button-toggle-group
+        aria-labelledby="mode-heading"
+        [value]="current.mode"
+        (change)="save(current, { mode: $event.value })">
+        <mat-button-toggle [value]="modes.FixedTargetScore">First to a score</mat-button-toggle>
+        <mat-button-toggle [value]="modes.FixedRounds">Fixed rounds</mat-button-toggle>
+      </mat-button-toggle-group>
+      <p class="sentence">
+        {{ current.mode === modes.FixedRounds ? 'Play' : 'First to' }}
+        <mat-form-field class="target" appearance="outline" subscriptSizing="dynamic">
+          <mat-select
+            [aria-label]="current.mode === modes.FixedRounds ? 'Rounds to play' : 'Points to win'"
+            [value]="current.target"
+            (selectionChange)="save(current, { target: $event.value })">
+            @for (target of targets; track target) {
+              <mat-option [value]="target">{{ target }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        {{ current.mode === modes.FixedRounds ? 'rounds' : 'points' }}
+      </p>
+    </section>
+
+    @if (supportsPowerUps()) {
+      <section>
+        <h3 id="power-ups-heading">Power-ups</h3>
+        <mat-button-toggle-group
+          aria-labelledby="power-ups-heading"
+          [value]="current.powerUps"
+          (change)="save(current, { powerUps: $event.value })">
+          <mat-button-toggle [value]="false">Off</mat-button-toggle>
+          <mat-button-toggle [value]="true">On</mat-button-toggle>
+        </mat-button-toggle-group>
+        <p class="hint">One shield and one double per match</p>
+      </section>
+    }
+  }
+</mat-expansion-panel>

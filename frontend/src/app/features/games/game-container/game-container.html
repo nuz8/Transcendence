@@ -1,0 +1,19 @@
+<main class="game-page">
+  @if (gameplayComponent(); as component) {
+    <mat-card appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>{{ gameName() }}</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+      </mat-card-content>
+    </mat-card>
+    @if (status() === 'matched') {
+      <ng-container *ngComponentOutlet="component; inputs: { gameId: gameId() }" />
+      <button matButton (click)="quit()">Quit Match</button>
+    } @else {
+      <app-matchmaking />
+    }
+
+    <app-game-settings [gameId]="gameId()" [supportsPowerUps]="supportsPowerUps()" />
+  }
+</main>

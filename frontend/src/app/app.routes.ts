@@ -5,10 +5,11 @@ import { authGuard } from './core/guards/auth-guard';
 import { Profile } from './features/profile/profile';
 import { TermsOfService } from './legal/terms-of-service/terms-of-service';
 import { PrivacyPolicy } from './legal/privacy-policy/privacy-policy';
-import { Rps } from './features/games/rps/rps';
-import { Ttt } from './features/games/ttt/ttt';
 import { Home } from './features/home/home';
 import { Friends } from './features/friends/friends';
+import { GameContainer } from './features/games/game-container/game-container';
+import { GAME_NAMES } from './features/games/game.constants';
+import { ActivatedRouteSnapshot } from '@angular/router';
 
 export const routes: Routes = [
 	{
@@ -50,16 +51,11 @@ export const routes: Routes = [
 		title: 'Privacy Policy',
 	},
 	{
-		path: 'games/1f3b8ae9-fb12-4deb-9ffc-7c498b3e446e',
-		component: Rps,
+		path: 'games/:gameId',
+		component: GameContainer,
 		canActivate: [authGuard],
-		title: 'Rock Paper Scissors',
-	},
-	{
-		path: 'games/7c2d9e41-5a3b-4f68-9b1e-2d8a6c4f0e53',
-		component: Ttt,
-		canActivate: [authGuard],
-		title: 'Tic-Tac-Toe',
+		title: (route: ActivatedRouteSnapshot) =>
+			GAME_NAMES[route.paramMap.get('gameId') ?? ''] ?? 'Game',
 	},
 	{
 		path: 'friends',

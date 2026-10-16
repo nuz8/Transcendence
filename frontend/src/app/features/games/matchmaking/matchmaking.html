@@ -1,0 +1,40 @@
+<mat-card appearance="outlined">
+  <mat-card-header>
+    <mat-card-title>Matchmaking</mat-card-title>
+  </mat-card-header>
+
+  <mat-card-content>
+    @if (unknownGame()) {
+      <p class="status-line">No game selected. Go back and choose a game to find a match for.</p>
+    } @else {
+      @switch (status()) {
+        @case ('connecting') {
+          <p class="status-line">
+            <mat-progress-spinner diameter="20" mode="indeterminate" />
+            Connecting&hellip;
+          </p>
+        }
+        @case ('idle') {
+          <p class="status-line">Ready to find a match.</p>
+        }
+        @case ('queueing') {
+          <p class="status-line">
+            <mat-progress-spinner diameter="20" mode="indeterminate" />
+            Waiting for an opponent&hellip;
+          </p>
+        }
+      }
+    }
+  </mat-card-content>
+
+  <mat-card-actions>
+    @if (!unknownGame()) {
+      @if (status() === 'idle') {
+        <button matButton="filled" (click)="queue()">Queue for Match</button>
+      }
+      @if (status() === 'queueing') {
+        <button matButton (click)="leaveQueue()">Leave Queue</button>
+      }
+    }
+  </mat-card-actions>
+</mat-card>
