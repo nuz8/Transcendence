@@ -7,6 +7,7 @@
 		@if (isUserLoggedIn()) {
 			<a routerLink="/friends" mat-button>Friends</a>
 			<a routerLink="/profile" mat-button>My account</a>
+			<span class="spacer"></span>
 			<button (click)="onLogout()" matButton="outlined">Logout</button>
 		}
 	</mat-toolbar>

@@ -8,8 +8,29 @@
 
 .header-content {
 	display: flex;
-	gap: 1rem;
-	align-items: center;
+	gap: 1.5rem;
+	align-items: flex-start;
+}
+
+.header-info {
+   	flex: 1;
+}
+
+.header-info p {
+	margin: 0.25rem 0;
+}
+
+.muted {
+	color: var(--mat-sys-on-surface-variant);
+}
+
+.level {
+	margin-top: 1rem;
+}
+
+.level-text {
+	display: flex;
+	justify-content: space-between;
 }
 
 .username-row {

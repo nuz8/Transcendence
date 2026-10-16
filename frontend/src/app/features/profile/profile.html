@@ -28,7 +28,7 @@
             </button>
           }
         </div>
-        <div>
+        <div class="header-info">
           @if (profileView.isSelf && avatarError()) {
             <p role="alert">{{ avatarError() }}</p>
           }
@@ -92,12 +92,19 @@
             }
           }
           @if (profileView.isSelf) {
-            <p>{{ profileView.profile.email }}</p>
+            <p class="muted">{{ profileView.profile.email }}</p>
           }
           @if (!profileView.isSelf && profile.friendship.state === 'friends' && profile.online !== undefined) {
-            <p>{{ profile.online ? 'Online' : 'Offline' }}</p>
+            <p class="muted">{{ profile.online ? 'Online' : 'Offline' }}</p>
           }
-          <p>Level {{ profile.level }} | {{ profile.xp }} XP</p>
+          @let progress = levelProgress(profile.level, profile.xp);
+          <div class="level">
+            <p class="level-text">
+              <span>Level {{ profile.level }} · {{ profile.xp }} XP</span>
+              <span class="muted">{{ progress.left }} XP to Level {{ profile.level + 1 }}</span>
+            </p>
+            <mat-progress-bar mode="determinate" [value]="progress.percent" />
+          </div>
         </div>
       </mat-card-content>
     </mat-card>
@@ -163,7 +170,7 @@
                   @if (match.opponent; as opponent) {
                     vs {{ opponent.username }} -
                   }
-                  {{ match.achievedAt }}
+                  {{ match.achievedAt | date: 'd MMM y, HH:mm' }}
                 </span>
               </mat-list-item>
               <mat-divider />

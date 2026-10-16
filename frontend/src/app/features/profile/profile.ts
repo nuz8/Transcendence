@@ -1,5 +1,5 @@
 import { ActivatedRoute } from '@angular/router';
-import { AsyncPipe } from '@angular/common';
+import { AsyncPipe, DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormField, form, submit, validate } from '@angular/forms/signals';
@@ -19,13 +19,20 @@ import { UserService } from '../../core/services/user.service';
 import { Auth } from '../../core/auth';
 import { AUTH_VALID_RULES } from '../../core/auth/auth-validation.constants';
 import { AVATAR_VALID_RULES } from '../../core/services/avatar-validation.constants';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 type ProfileView =
   | { profile: SelfProfileResponseDto; isSelf: true }
   | { profile: ProfileResponseDto; isSelf: false };
 
+function xpForLevel(level: number): number {
+  return level <= 0 ? 0 : Math.ceil(5 * Math.pow(1.42, level - 1));
+}
+
 @Component({
   imports: [
+    MatProgressBarModule,
+    DatePipe,
     AsyncPipe,
     MatButtonModule,
     MatCardModule,
@@ -178,5 +185,11 @@ export class Profile {
         this.usernameUpdatePending.set(false);
       }
     });
+  }
+
+  protected levelProgress(level: number, xp: number): { left: number, percent: number} {
+    const start = xpForLevel(level);
+    const end = xpForLevel(level + 1);
+    return { left: end - xp, percent: ((xp - start) / (end - start)) * 100 };
   }
 }
