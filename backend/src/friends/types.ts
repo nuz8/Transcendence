@@ -26,3 +26,12 @@ export type FriendshipRelationship = {
 	state: FriendshipState;
 	friendshipId: string | null;
 };
+
+export type FriendshipChangeKind = 'requested' | 'accepted' | 'declined' | 'removed';
+
+// Type'd this way so that listener can notify both sides of the change
+export type FriendshipChange = {
+	kind: FriendshipChangeKind;
+	requesterId: string;
+	addresseeId: string;
+};

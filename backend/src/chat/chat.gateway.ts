@@ -5,10 +5,10 @@ import { Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { SocketAuthenticator } from '../auth/socketAuthenticator';
 import { PresenceService, type PresenceChange } from '../presence/presence.service';
-import { FriendService } from '../friends';
+import { FriendService, type FriendshipChange } from '../friends';
 
 const HEARTBEAT_INTERVAL_MS = 25_000;	// 25 seconds: less than standard 30-60s NAT router drops and Nginx read timeouts.
-type HeartbeatSocket = WebSocket & { isAlive?: boolean };	// Extends the standard WebSocket type to store our liveness flag.
+type HeartbeatSocket = WebSocket & { isAlive?: boolean };	// Extends the standard WebSocket type to store liveness flag.
 
 @WebSocketGateway({ path: '/chat' })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit, OnModuleDestroy {
@@ -23,6 +23,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 		private readonly friendService: FriendService,
 	) {
 		this.presenceService.onChange((change) => this.notifyFriends(change));
+		this.friendService.onChange((change) => this.notifyFriendshipChange(change));
 	}
 
     // Starts the background ping/pong heartbeat loop.
@@ -156,6 +157,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 					this.broadcastTo(friend.id, 'presence', change);
 			})
 			.catch((err) => this.logger.error('failed to notify friends of a presence change', err));
+	}
+
+	private notifyFriendshipChange({ kind, requesterId, addresseeId }: FriendshipChange): void {
+		this.broadcastTo(requesterId, 'friendship', { kind, peerId: addresseeId });
+		this.broadcastTo(addresseeId, 'friendship', { kind, peerId: requesterId });
 	}
 
 	private emit(client: WebSocket, event: string, data: unknown): void {

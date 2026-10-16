@@ -5,6 +5,7 @@ import { users, friendships } from '../db/schema';
 import { FriendRepository } from './friend.repository';
 import { FriendService } from './friend.service';
 import { UserRepository, UserService } from '../users';
+import { FriendshipChange } from './types';
 
 const VALID_BCRYPT_HASH =
 	'$2b$12$e80yq9O8r.xXpY4Ew9KjSeB4dO6p8q7a5d3f2g1h0j9k8l7m6n5o4';
@@ -129,6 +130,49 @@ describe('FriendService', () => {
 
 			const result = await service.removeFriend('00000000-0000-0000-0000-000000000000', created.friendship.id);
 			expect(result).toEqual({ success: false, reason: 'NOT_ALLOWED_ON_THIS_FRIENDSHIP' });
+		});
+	});
+
+	describe('change events', () => {
+		function listen(): { service: FriendService; changes: FriendshipChange[] } {
+			const listened = new FriendService(repo, userService);
+			const changes: FriendshipChange[] = [];
+			listened.onChange((change) => changes.push(change));
+			return { service: listened, changes };
+		}
+
+		it('emits requested once the request is saved, and nothing for a refused one', async () => {
+			const { service, changes } = listen();
+
+			await service.sendRequest(userAId, userAId);
+			expect(changes).toEqual([]);
+
+			await service.sendRequest(userAId, userBId);
+			expect(changes).toEqual([{ kind: 'requested', requesterId: userAId, addresseeId: userBId }]);
+		});
+
+		it('emits accepted only when the addressee accepts', async () => {
+			const { service, changes } = listen();
+			const created = await service.sendRequest(userAId, userBId);
+			if (!created.success) throw new Error('setup failed');
+			changes.length = 0;
+
+			await service.acceptRequest(userAId, created.friendship.id);
+			expect(changes).toEqual([]);
+
+			await service.acceptRequest(userBId, created.friendship.id);
+			expect(changes).toEqual([{ kind: 'accepted', requesterId: userAId, addresseeId: userBId }]);
+		});
+
+		it('emits removed once the friendship is deleted', async () => {
+			const { service, changes } = listen();
+			const created = await service.sendRequest(userAId, userBId);
+			if (!created.success) throw new Error('setup failed');
+			await service.acceptRequest(userBId, created.friendship.id);
+			changes.length = 0;
+
+			await service.removeFriend(userBId, created.friendship.id);
+			expect(changes).toEqual([{ kind: 'removed', requesterId: userAId, addresseeId: userBId }]);
 		});
 	});
 

@@ -36,7 +36,10 @@ describe('ChatGateway', () => {
     const denyList = new DenyList();
     socketAuthRegistry = new SocketAuthRegistry(denyList);
     presenceService = new PresenceService();
-    friendService = { listFriends: jest.fn().mockResolvedValue([]) } as unknown as FriendService;
+    friendService = {
+      listFriends: jest.fn().mockResolvedValue([]),
+      onChange: jest.fn(),
+    } as unknown as FriendService;
     gateway = new ChatGateway(
       {} as ChatService,
       new SocketAuthenticator(jwtService, denyList, socketAuthRegistry),
@@ -131,6 +134,42 @@ describe('ChatGateway', () => {
       await connectUser(fakeSocket(), 'bob');
 
       expect(aliceClient.send).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('friendship change broadcast', () => {
+    // The gateway registered its listener in the constructor; grab it from the mock.
+    function emitFriendshipChange(change: { kind: string; requesterId: string; addresseeId: string }): void {
+      const listener = (friendService.onChange as jest.Mock).mock.calls[0][0];
+      listener(change);
+    }
+
+    it('tells each party about the other, and nobody else', async () => {
+      const aliceClient = fakeSocket();
+      const bobClient = fakeSocket();
+      const carolClient = fakeSocket();
+      await connectUser(aliceClient, 'alice');
+      await connectUser(bobClient, 'bob');
+      await connectUser(carolClient, 'carol');
+      (aliceClient.send as jest.Mock).mockClear();
+      (bobClient.send as jest.Mock).mockClear();
+      (carolClient.send as jest.Mock).mockClear();
+
+      emitFriendshipChange({ kind: 'requested', requesterId: 'alice', addresseeId: 'bob' });
+
+      expect(aliceClient.send).toHaveBeenCalledWith(
+        JSON.stringify({ event: 'friendship', data: { kind: 'requested', peerId: 'bob' } }),
+      );
+      expect(bobClient.send).toHaveBeenCalledWith(
+        JSON.stringify({ event: 'friendship', data: { kind: 'requested', peerId: 'alice' } }),
+      );
+      expect(carolClient.send).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when neither party is connected', () => {
+      expect(() =>
+        emitFriendshipChange({ kind: 'removed', requesterId: 'alice', addresseeId: 'bob' }),
+      ).not.toThrow();
     });
   });
 

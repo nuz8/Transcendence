@@ -9,4 +9,6 @@ export type {
 	RemoveFriendResult,
 	FriendshipState,
 	FriendshipRelationship,
+	FriendshipChange,
+	FriendshipChangeKind,
 } from './types';

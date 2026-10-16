@@ -1,11 +1,20 @@
 import { Injectable } from '@nestjs/common';
+import { EventEmitter } from 'node:events';
 import { FriendRepository, FriendRequestConflictError, FriendTargetNotFoundError } from './friend.repository';
 import { FriendshipEntity, AcceptedFriend } from './friend.entity';
-import { SendFriendRequestResult, RespondToFriendRequestResult, RemoveFriendResult, FriendshipRelationship } from './types';
-import { UserService } from '../users';
+import {
+	SendFriendRequestResult,
+	RespondToFriendRequestResult,
+	RemoveFriendResult,
+	FriendshipRelationship,
+	FriendshipChange,
+	FriendshipChangeKind,
+} from './types';
+import { UserService } from '../users/user.service';
 
 @Injectable()
 export class FriendService {
+	private readonly events = new EventEmitter();
 	constructor(
 		private readonly friendRepo: FriendRepository,
 		private readonly userService: UserService,
@@ -23,6 +32,7 @@ export class FriendService {
 
 		try {
 			const friendship = await this.friendRepo.upsertRequest(callerId, addresseeId);
+			this.emitChange('requested', friendship);
 			return { success: true, friendship };
 		} catch (error) {
 			if (error instanceof FriendRequestConflictError) {
@@ -39,11 +49,11 @@ export class FriendService {
 	}
 
 	async acceptRequest(callerId: string, friendshipId: string): Promise<RespondToFriendRequestResult> {
-		return this.respondToRequest(callerId, friendshipId, (id) => this.friendRepo.accept(id));
+		return this.respondToRequest(callerId, friendshipId, 'accepted', (id) => this.friendRepo.accept(id));
 	}
 
 	async declineRequest(callerId: string, friendshipId: string): Promise<RespondToFriendRequestResult> {
-		return this.respondToRequest(callerId, friendshipId, (id) => this.friendRepo.decline(id));
+		return this.respondToRequest(callerId, friendshipId, 'declined', (id) => this.friendRepo.decline(id));
 	}
 
 	async removeFriend(callerId: string, friendshipId: string): Promise<RemoveFriendResult> {
@@ -56,6 +66,7 @@ export class FriendService {
 		}
 
 		await this.friendRepo.remove(friendshipId);
+		this.emitChange('removed', row);
 		return { success: true };
 	}
 
@@ -80,6 +91,7 @@ export class FriendService {
 	private async respondToRequest(
 		callerId: string,
 		friendshipId: string,
+		kind: FriendshipChangeKind,
 		transition: (id: string) => Promise<FriendshipEntity>,
 	): Promise<RespondToFriendRequestResult> {
 		const row = await this.friendRepo.findById(friendshipId);
@@ -94,6 +106,7 @@ export class FriendService {
 		}
 
 		const friendship = await transition(friendshipId);
+		this.emitChange(kind, friendship);
 		return { success: true, friendship };
 	}
 
@@ -117,5 +130,17 @@ export class FriendService {
 			state: row.requesterId === callerId ? 'pending_outgoing' : 'pending_incoming',
 			friendshipId: row.id,
 		};
+	}
+
+	onChange(listener: (change: FriendshipChange) => void): void {
+		this.events.on('change', listener);
+	}
+
+	private emitChange(kind: FriendshipChangeKind, friendship: FriendshipEntity): void {
+		this.events.emit('change', {
+			kind,
+			requesterId: friendship.requesterId,
+			addresseeId: friendship.addresseeId,
+		} satisfies FriendshipChange);
 	}
 }
