@@ -56,8 +56,14 @@ export class AuthController {
   async refresh(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<RefreshResponseDto> {
+  ): Promise<RefreshResponseDto | void> {
     const refreshToken = request.cookies[REFRESH_TOKEN_COOKIE.NAME];
+    if (!refreshToken) {
+      // No session to restore (e.g. app start while logged out): not an error, so the browser logs nothing.
+      response.status(HttpStatus.NO_CONTENT);
+      return;
+    }
+
     const result = await this.authService.refresh(refreshToken);
 
     if (!result.success) {

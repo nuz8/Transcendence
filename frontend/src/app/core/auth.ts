@@ -1,6 +1,6 @@
 import { Injectable, signal, inject, computed } from '@angular/core';
 import { AuthService, LoginDto, LoginResponseDto, LogoutResponseDto, PublicUserResponseDto, RefreshResponseDto, RegisterDto } from './modules/openapi';
-import { Observable, defer, finalize, firstValueFrom, from, shareReplay, tap, timeout } from 'rxjs';
+import { Observable, defer, finalize, firstValueFrom, from, map, shareReplay, tap, timeout } from 'rxjs';
 import { getTokenSubject } from './auth/token-expiry.util';
 
 const REFRESH_TIMEOUT_MS = 5000;
@@ -38,6 +38,11 @@ export class Auth {
       ),
     ).pipe(
       timeout(REFRESH_TIMEOUT_MS),
+      map((res) => {
+        // 204 No Content: no refresh cookie, so there is no session to restore
+        if (!res?.access_token) throw new Error('NO_SESSION');
+        return res;
+      }),
       tap((res) => this._accessToken.set(res.access_token)),
       finalize(() => { this.refreshInFlight = null; }),
       shareReplay(1),

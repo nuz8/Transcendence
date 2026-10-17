@@ -31,6 +31,14 @@ describe('initAuth', () => {
     httpMock.verify();
   });
 
+  it('starts logged out, without an error, when there is no session (204)', async () => {
+    const promise = TestBed.runInInjectionContext(() => initAuth());
+    httpMock.expectOne(`${environment.apiUrl}/auth/refresh`).flush(null, { status: 204, statusText: 'No Content' });
+    await expect(promise).resolves.toBeNull();
+    expect(auth.accessToken()).toBeNull();
+    httpMock.verify();
+  });
+
   it('resolves without throwing when there is no valid refresh cookie', async () => {
     const promise = TestBed.runInInjectionContext(() => initAuth());
     httpMock.expectOne(`${environment.apiUrl}/auth/refresh`).flush(

@@ -4,6 +4,7 @@ import {
   ApiBadRequestResponse,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiOperation,
   ApiTags,
   ApiOkResponse,
@@ -33,7 +34,8 @@ export function ApiPostAuthRefresh() {
   return applyDecorators(
     ApiOperation({ summary: 'Refresh the authentication tokens' }),
     ApiOkResponse({ type: RefreshResponseDto }),
-    ApiUnauthorizedResponse({ description: 'The refresh token cookie is missing, invalid, or expired.' }),
+    ApiNoContentResponse({ description: 'No refresh token cookie: there is no session to restore.' }),
+    ApiUnauthorizedResponse({ description: 'The refresh token cookie is invalid or expired.' }),
   );
 }
 

@@ -220,8 +220,14 @@ describe('Auth Registration (e2e)', () => {
       expect(cookie).toContain('HttpOnly');
     });
 
-    it('rejects /auth/refresh with no cookie', async () => {
-      await request(app.getHttpServer()).post('/auth/refresh').expect(401);
+    it('answers 204 with no body when there is no refresh cookie', async () => {
+      const res = await request(app.getHttpServer()).post('/auth/refresh').expect(204);
+      expect(res.body).toEqual({});
+      expect(res.headers['set-cookie']).toBeUndefined();
+    });
+
+    it('still rejects /auth/refresh with an invalid cookie', async () => {
+      await request(app.getHttpServer()).post('/auth/refresh').set('Cookie', 'refresh_token=not-a-jwt').expect(401);
     });
 
     it('rotates the refresh token cookie on /auth/refresh', async () => {
