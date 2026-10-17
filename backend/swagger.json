@@ -216,8 +216,11 @@
               }
             }
           },
+          "204": {
+            "description": "No refresh token cookie: there is no session to restore."
+          },
           "401": {
-            "description": "The refresh token cookie is missing, invalid, or expired."
+            "description": "The refresh token cookie is invalid or expired."
           }
         },
         "summary": "Refresh the authentication tokens",
