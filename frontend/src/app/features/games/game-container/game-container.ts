@@ -22,6 +22,15 @@ export class GameContainer implements OnInit {
 
   protected readonly status = this.gameSocket.status;
 
+  protected readonly opponentConnected = this.gameSocket.opponentConnected;
+
+  protected readonly reconnectTimeLeft = this.gameSocket.reconnectTimeLeft;
+
+  protected readonly endMessage = this.gameSocket.endMessage;
+
+  // Gameplay component stays mounted through 'over' so its final board/result remains visible.
+  protected readonly inMatch = computed(() => this.status() === 'matched' || this.status() === 'over');
+
   gameplayComponent = computed(
     () => GAME_COMPONENTS[this.gameId()] ?? null
   );
@@ -36,5 +45,9 @@ export class GameContainer implements OnInit {
 
   protected quit(): void {
     this.gameSocket.quit();
+  }
+
+  protected backToMatchmaking(): void {
+    this.gameSocket.backToMatchmaking();
   }
 }

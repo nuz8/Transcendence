@@ -2,7 +2,7 @@
 
   <mat-expansion-panel-header>
     <mat-panel-title>Settings</mat-panel-title>
-    @if (settings() && expanded()) {
+    @if (settings() && !expanded()) {
       <mat-panel-description>{{ summary() }}</mat-panel-description>
     }
   </mat-expansion-panel-header>

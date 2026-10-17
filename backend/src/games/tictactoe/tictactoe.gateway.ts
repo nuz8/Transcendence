@@ -1,7 +1,7 @@
 import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway } from "@nestjs/websockets";
 import { WebSocket } from 'ws';
 import { GameGateway, Session } from "../game.gateway";
-import { MARK_OF, TTT_GAME_ID, TTT_TURN_TIME_LIMIT_MS } from "./tictactoe.constants";
+import { MARK_OF, TTT_GAME_ID, TTT_ROUND_REVIEW_MS, TTT_TURN_TIME_LIMIT_MS } from "./tictactoe.constants";
 import { TicTacToeService } from "./tictactoe.service";
 import { MatchService } from "../match/match.service";
 import { ScoreService } from "../../scores";
@@ -18,6 +18,9 @@ export class TicTacToeGateway extends GameGateway implements OnGatewayConnection
   protected readonly roundTimeLimit = TTT_TURN_TIME_LIMIT_MS; // The base-class round timer doubles as the per-turn timer
   protected override readonly allowSolo = false;  // Only supports PvP mode for now, to be flipped to false if bod mode is added
   protected override readonly supportsPowerUps = false; // No support for power-ups for now
+
+  // Pending 'board clears in a moment' timeout per session, between a non-final round ending and the next one starting
+  private readonly reviewTimers = new Map<string, NodeJS.Timeout>();
 
   constructor(
     private readonly tttService: TicTacToeService,
@@ -51,9 +54,18 @@ export class TicTacToeGateway extends GameGateway implements OnGatewayConnection
     return {
       symbol: MARK_OF[side],
       board: this.tttService.transformToMarks(game.board),
-      yourTurn: game.turn === side,
+      yourTurn: !game.reviewing && game.turn === side,
       turnTimeMs: this.roundTimeLimit,
     };
+  }
+
+  // Clears a pending 'next round' timeout so it can't fire on a session that has already ended
+  protected override onSessionEnd(sessionId: string): void {
+    const timer = this.reviewTimers.get(sessionId);
+    if (timer) {
+      clearTimeout(timer);
+      this.reviewTimers.delete(sessionId);
+    }
   }
 
   // Method to handle 'move' message: validates, then hands over to applyMove()
@@ -75,6 +87,8 @@ export class TicTacToeGateway extends GameGateway implements OnGatewayConnection
 
     const game = this.gameOf(session);
     const side = this.sideOf(session, client)!;
+    if (game.reviewing)
+      return this.send(client, 'error', { message: 'round is resetting, please wait' });
     if (game.turn !== side)
       return this.send(client, 'error', { message: 'not your turn' });
     if (!this.tttService.isFree(game.board, cell))
@@ -108,7 +122,8 @@ export class TicTacToeGateway extends GameGateway implements OnGatewayConnection
     }));
   }
 
-  // Scores a finished board (win or draw), then starts the next round or ends the match
+  // Scores a finished board (win or draw): the match either ends here, or the board stays frozen
+  // for a short review period before the next round clears it
   private endRound(session: Session,
     sessionId: string,
     winner: Player | null
@@ -118,26 +133,39 @@ export class TicTacToeGateway extends GameGateway implements OnGatewayConnection
 
     session.state = this.matchService.recordRound(session.state, winner);
     const over = this.matchService.gameOver(session.state);
-    
-    // Next round: empty board, alternating starter, fresh clock (skipped when the match is over)
-    if (!over) {
-      game.board = this.tttService.emptyBoard();
-      game.turn = this.tttService.startingPlayer(game.firstStarter, session.state.roundsPlayed);
-      this.startRoundTimer(session);
-    }
+    game.reviewing = !over;
 
     this.broadcast(session, 'round', (seat) => ({
       board: finishedBoard,
       outcome: this.tttService.outcomeFor(seat, winner),
-      yourTurn: !over && game.turn === seat,
+      yourTurn: false,
       roundsPlayed: session.state.roundsPlayed,
       ...this.viewFor(seat, session.state),
-      roundTimeLeft: over ? null : session.clock.timeLeft(),
+      roundTimeLeft: null,
     }));
 
-    // finish() sends 'over', saves the scores and ends the session
+    // finish() sends 'over', saves the scores and ends the session; otherwise queue the next round
     if (over)
-      this.finish(session, sessionId);
+      return this.finish(session, sessionId);
+
+    this.reviewTimers.set(sessionId, setTimeout(() => this.startNextRound(session, sessionId), TTT_ROUND_REVIEW_MS));
+  }
+
+  // Clears the board, hands the turn to the alternating starter and restarts the per-turn clock
+  private startNextRound(session: Session, sessionId: string): void {
+    this.reviewTimers.delete(sessionId);
+
+    const game = this.gameOf(session);
+    game.board = this.tttService.emptyBoard();
+    game.turn = this.tttService.startingPlayer(game.firstStarter, session.state.roundsPlayed);
+    game.reviewing = false;
+    this.startRoundTimer(session);
+
+    this.broadcast(session, 'next_round', (seat) => ({
+      board: this.tttService.transformToMarks(game.board),
+      yourTurn: game.turn === seat,
+      roundTimeLeft: session.clock.timeLeft(),
+    }));
   }
 
   /**

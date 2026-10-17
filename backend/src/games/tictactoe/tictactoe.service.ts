@@ -18,6 +18,7 @@ export class TicTacToeService {
       board: this.emptyBoard(),
       turn: firstStarter,
       firstStarter,
+      reviewing: false,
     };
   }
 

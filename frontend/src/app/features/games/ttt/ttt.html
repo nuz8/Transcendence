@@ -1,1 +1,44 @@
-Tic-Tac-Toe gameplay
+<mat-card appearance="outlined">
+  <mat-card-content>
+    <p class="status-line">
+      You are {{ symbol() }} &middot; {{ ownScore() }} - {{ opScore() }}
+      @if (roundTimeLeft() !== null) {
+        &middot; {{ roundTimeLeft() }}s left
+      }
+    </p>
+
+    <div class="board">
+      @for (cell of board(); track $index) {
+        <button
+          type="button"
+          class="cell"
+          [disabled]="!yourTurn() || reviewing() || matchOver() || cell !== null"
+          (click)="move($index)">
+          {{ cell }}
+        </button>
+      }
+    </div>
+
+    @if (matchOver()) {
+      <p class="status-line">
+        @switch (matchOutcome()) {
+          @case ('win') { You won the match! }
+          @case ('lose') { You lost the match. }
+          @case ('draw') { The match ended in a draw. }
+          @case ('forfeit') { You lost the match by forfeit. }
+        }
+      </p>
+    } @else if (reviewing()) {
+      <p class="status-line">
+        @switch (roundOutcome()) {
+          @case ('win') { You won this round! }
+          @case ('lose') { You lost this round. }
+          @case ('draw') { Round drawn. }
+        }
+      </p>
+    } @else {
+      <p class="status-line">{{ yourTurn() ? 'Your turn' : "Opponent's turn" }}</p>
+    }
+  </mat-card-content>
+</mat-card>
+

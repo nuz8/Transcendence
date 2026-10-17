@@ -10,7 +10,7 @@ import { PresenceService } from '../../../presence/presence.service';
 import { MatchService } from '../../match/match.service';
 import { ActiveMatchService } from '../../gateway-utils/active-match.service';
 import type { GameSettingsService } from '../../settings/game-settings.service';
-import { TTT_TURN_TIME_LIMIT_MS } from '../tictactoe.constants';
+import { TTT_ROUND_REVIEW_MS, TTT_TURN_TIME_LIMIT_MS } from '../tictactoe.constants';
 import { TicTacToeGateway } from '../tictactoe.gateway';
 import { TicTacToeService } from '../tictactoe.service';
 
@@ -105,13 +105,22 @@ describe('TicTacToeGateway', () => {
     expect(last(second)).toEqual({ event: 'error', data: { message: 'cell already taken' } });
   });
 
-  it('scores a won round and gives the next round to the other player', async () => {
+  it('scores a won round, freezes the board, then clears it and hands the next round to the other player', async () => {
     const { first, second } = await startMatch();
     for (const [client, cell] of [[first, 0], [second, 3], [first, 1], [second, 4], [first, 2]] as const)
       gateway.move(client.socket, cell);
 
     expect(last(first)).toMatchObject({ event: 'round', data: { outcome: 'win', yourTurn: false, ownScore: 1, opScore: 0 } });
-    expect(last(second)).toMatchObject({ event: 'round', data: { outcome: 'lose', yourTurn: true } });
+    expect(last(second)).toMatchObject({ event: 'round', data: { outcome: 'lose', yourTurn: false } });
+
+    // The board stays frozen (and moves are rejected) until the review delay elapses
+    gateway.move(second.socket, 5);
+    expect(last(second)).toEqual({ event: 'error', data: { message: 'round is resetting, please wait' } });
+
+    await jest.advanceTimersByTimeAsync(TTT_ROUND_REVIEW_MS);
+
+    expect(last(first)).toMatchObject({ event: 'next_round', data: { board: Array(9).fill(null), yourTurn: false } });
+    expect(last(second)).toMatchObject({ event: 'next_round', data: { board: Array(9).fill(null), yourTurn: true } });
   });
 
   it('forfeits the player on turn when the turn clock runs out', async () => {

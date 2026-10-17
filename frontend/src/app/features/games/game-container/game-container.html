@@ -7,10 +7,25 @@
       <mat-card-content>
       </mat-card-content>
     </mat-card>
-    @if (status() === 'matched') {
+    @if (inMatch()) {
       <ng-container *ngComponentOutlet="component; inputs: { gameId: gameId() }" />
-      <button matButton (click)="quit()">Quit Match</button>
+      @if (status() === 'matched' && !opponentConnected()) {
+        <p class="disconnect-notice">
+          Opponent disconnected &mdash; waiting for them to reconnect&hellip;
+          @if (reconnectTimeLeft() !== null) {
+            ({{ reconnectTimeLeft() }}s left)
+          }
+        </p>
+      }
+      @if (status() === 'matched') {
+        <button matButton (click)="quit()">Quit Match</button>
+      } @else {
+        <button matButton (click)="backToMatchmaking()">Back to Matchmaking</button>
+      }
     } @else {
+      @if (endMessage(); as message) {
+        <p class="disconnect-notice">{{ message }}</p>
+      }
       <app-matchmaking />
     }
 

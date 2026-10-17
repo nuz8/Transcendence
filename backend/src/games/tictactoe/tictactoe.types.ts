@@ -10,6 +10,7 @@ export type TttState = {              // Pre-session game state: is stored in Se
   board: Board;
   turn: Player;                         // Seat that must move next
   firstStarter: Player;                 // Seat that started round 1
+  reviewing: boolean;                   // True between a finished round and the next round's board reset: moves are rejected
 };
 
 export type { MatchState, Outcome, Player } from '../match/match.types'

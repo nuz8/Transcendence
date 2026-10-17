@@ -27,7 +27,7 @@ export class GameSettings implements OnInit {
   protected readonly modes = GameSettingsDto.ModeEnum;
   protected readonly expanded = signal(false);
   // Settings can't be changed once a match is being searched for.
-  protected readonly locked = computed(() => this.gameSocket.status() === 'queueing');
+  protected readonly locked = computed(() => this.gameSocket.status() !== 'idle');
 
   // Shown in the collapsed panel header as a quick-glance summary.
   protected readonly summary = computed(() => {

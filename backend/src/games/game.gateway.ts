@@ -442,6 +442,7 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
     }
 
     private endSession(sessionId: string, session: Session): void {
+        this.onSessionEnd(sessionId, session);
         for (const seat of [session.a, session.b]){
             if (seat)
                 this.activeMatchService.remove(seat.userId);
@@ -499,6 +500,9 @@ export abstract class GameGateway implements OnModuleInit, OnModuleDestroy {
     protected sessionExtras(_side: Player, _session: Session): Record<string, unknown> {
         return {};
     }
+
+    // Lets subclasses clean up game-specific timers (e.g. a round-review timeout) when a session ends.
+    protected onSessionEnd(_sessionId: string, _session: Session): void {}
 
     // Lets subclasses look up a session by id without exposing the whole map.
     protected sessionById(sessionId: string): Session | undefined {

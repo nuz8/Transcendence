@@ -5,3 +5,8 @@
   margin: 1.5rem auto;
   padding: 0 1rem 1.5rem;
 }
+
+.disconnect-notice {
+  color: var(--mat-sys-error, #b3261e);
+  font-style: italic;
+}
