@@ -3,7 +3,7 @@ import { AsyncPipe, DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormField, form, submit, validate } from '@angular/forms/signals';
-import { firstValueFrom, map, startWith, Subject, switchMap, type Observable, finalize, tap } from 'rxjs';
+import { catchError, EMPTY, firstValueFrom, map, startWith, Subject, switchMap, type Observable, finalize, tap, filter, merge } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
@@ -19,6 +19,7 @@ import { UserService } from '../../core/services/user.service';
 import { Auth } from '../../core/auth';
 import { AUTH_VALID_RULES } from '../../core/auth/auth-validation.constants';
 import { AVATAR_VALID_RULES } from '../../core/services/avatar-validation.constants';
+import { ChatSocket } from '../../core/chat-socket';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 type ProfileView =
@@ -55,6 +56,7 @@ export class Profile {
   private readonly route = inject(ActivatedRoute);
   private readonly reloadProfile$ = new Subject<void>();
   private readonly auth = inject(Auth);
+  private readonly chatSocket = inject(ChatSocket);
 
   protected friendshipActionPending = false;
   protected readonly isEditMode = signal(false);
@@ -81,15 +83,23 @@ export class Profile {
     switchMap((params): Observable<ProfileView> => {
       const requestedId = params.get('id');
       const userId = requestedId === this.auth.userId() ? null : requestedId;
-      return this.reloadProfile$.pipe(
+      const reload$: Observable<void> = userId === null ? this.reloadProfile$ : merge(
+        this.reloadProfile$,
+        this.chatSocket.friendshipChanges$.pipe(filter((change) => change.peerId === userId)),
+        this.chatSocket.resync$,
+      ).pipe(map((): void => undefined));
+      return reload$.pipe(
         startWith(undefined),
-        switchMap(() => userId === null
-          ? this.userService.getSelfProfile().pipe(
-              map((profile) => ({ profile, isSelf: true as const })),
-            )
-          : this.userService.getUserPorfile(userId).pipe(
-              map((profile) => ({ profile, isSelf: false as const })),
-            )),
+        switchMap(() => {
+          const request$: Observable<ProfileView> = userId === null
+            ? this.userService.getSelfProfile().pipe(
+                map((profile) => ({ profile, isSelf: true as const })),
+              )
+            : this.userService.getUserPorfile(userId).pipe(
+                map((profile) => ({ profile, isSelf: false as const })),
+              );
+          return request$.pipe(catchError(() => EMPTY));
+        }),
       );
     }),
   );

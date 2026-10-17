@@ -6,6 +6,11 @@ import { Auth } from './auth';
 
 const REOPEN_DELAY_MS = 5_000;
 
+export interface FriendshipChange {
+  kind: 'requested' | 'accepted' | 'declined' | 'removed';
+  peerId: string;
+}
+
 // Single owner of the /chat socket: to carry both chat messages and presence
 @Injectable({ providedIn: 'root' })
 export class ChatSocket {
@@ -24,6 +29,13 @@ export class ChatSocket {
   // For previously dropped gateway 'error' events (NOT_FRIENDS, invalid payload)
   private readonly errorSubject = new Subject<string>();
   readonly errors$ = this.errorSubject.asObservable();
+
+  private readonly friendshipSubject = new Subject<FriendshipChange>();
+  readonly friendshipChanges$ = this.friendshipSubject.asObservable();
+
+  private readonly resyncSubject = new Subject<void>();
+  readonly resync$ = this.resyncSubject.asObservable();
+  private hasBeenReady = false;
 
   constructor() {
     effect(() => {
@@ -80,9 +92,17 @@ export class ChatSocket {
     }
 
     switch (parsed.event) {
-      case 'authenticated':
+      case 'authenticated': {
+        const wasReady = this._ready();
         this._ready.set(true);
-        break;
+        if (!wasReady && this.hasBeenReady)
+          this.resyncSubject.next();
+        this.hasBeenReady = true;
+        break ;
+      }
+      case 'friendship':
+        this.friendshipSubject.next(parsed.data as FriendshipChange);
+        break ;
       case 'message':
         this.messageSubject.next(parsed.data as MessageResponseDto);
         break;

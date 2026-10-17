@@ -4,24 +4,36 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatListModule } from '@angular/material/list';
-import { map, forkJoin, switchMap } from 'rxjs';
+import { map, forkJoin, switchMap, merge, of } from 'rxjs';
 import { ProfileResponseDto, type AcceptedFriendResponseDto } from '../../core/modules/openapi';
 import { FriendshipService } from '../../core/services/friendship.service';
 import { BasePaginationComponent } from '../../shared/pagination/pagination-base';
 import { PaginationControlsComponent } from '../../shared/pagination/pagination-controls';
 import { UserService } from '../../core/services/user.service';
-
+import { ChatSocket } from '../../core/chat-socket';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 @Component({
   imports: [MatButtonModule, MatCardModule, MatDividerModule, MatListModule, PaginationControlsComponent, RouterLink],
   selector: 'app-friends',
   styleUrl: './friends.css',
   templateUrl: './friends.html',
 })
-export class Friends extends BasePaginationComponent<AcceptedFriendResponseDto> {
+export class Friends extends BasePaginationComponent<AcceptedFriendResponseDto> implements OnInit {
     private readonly friendshipService = inject(FriendshipService);
     private readonly userService = inject(UserService);
     protected readonly requesters = signal<ProfileResponseDto[]>([]);
+    private readonly chatSocket = inject(ChatSocket);
 
+    constructor() {
+        super();
+        merge(this.chatSocket.friendshipChanges$, this.chatSocket.resync$)
+            .pipe(takeUntilDestroyed())
+            .subscribe(() => {
+                this.loadPage(this.currentPage());
+                this.loadRequests();
+            });
+    }
+    
     ngOnInit(): void {
         this.loadPage(this.currentPage());
         this.loadRequests();
@@ -43,7 +55,9 @@ export class Friends extends BasePaginationComponent<AcceptedFriendResponseDto> 
     private loadRequests(): void {
         this.friendshipService
             .listIncoming()
-            .pipe(switchMap((requests) => forkJoin(requests.map((r) => this.userService.getUserPorfile(r.requesterId)))))
+            .pipe(switchMap((requests) => requests.length
+                ? forkJoin(requests.map((r) => this.userService.getUserPorfile(r.requesterId)))
+                : of([])))
             .subscribe((profiles) => this.requesters.set(profiles));
     }
 }

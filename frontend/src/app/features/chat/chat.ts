@@ -12,6 +12,7 @@ import type { AcceptedFriendResponseDto, MessageResponseDto } from '../../core/m
 import { ChatService } from '../../core/services/chat.service';
 import { FriendshipService } from '../../core/services/friendship.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { EMPTY, catchError, merge, startWith, switchMap } from 'rxjs';
 
 // Backend reason codes (chat.service.ts / chat.gateway.ts) mapped to user-facing text.
 const CHAT_ERRORS: Record<string, string> = {
@@ -75,16 +76,27 @@ export class Chat {
         this.loadConversation(peerId);
     });
 
-    this.friendshipService.listFriends().subscribe({
-      next: (friends) => {
+    merge(this.chatSocket.friendshipChanges$, this.chatSocket.resync$)
+      .pipe(
+        startWith(undefined),
+        switchMap(() =>
+          this.friendshipService.listFriends().pipe(
+            catchError(() => {
+              this.loadingFriends.set(false);
+              this.snackBar.open('Could not load friends.', 'OK', { duration: 4000 });
+              return EMPTY;   
+            }),
+          ),
+        ),
+        takeUntilDestroyed(),
+      )
+      .subscribe((friends) => {
         this.friends.set(friends);
         this.loadingFriends.set(false);
-      },
-      error: () => {
-        this.loadingFriends.set(false); // Without this the spinner would not stop
-        this.snackBar.open('Could not load friends.', 'OK', { duration: 4000 })
-      },
-    });
+        const peerId = this.selectedPeerId();
+        if ( peerId && !friends.some((f) => f.friend.id === peerId))
+          this.selectedPeerId.set(null);
+      });
 
     this.chatSocket.messages$.pipe(takeUntilDestroyed()).subscribe((message) => this.onMessage(message));
 
