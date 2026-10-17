@@ -21,8 +21,7 @@ export class Header {
       error: (error) => {
         console.error('Logout request failed', error);
       },
+      complete: () => void this.router.navigate(['/login']),
     });
-
-    void this.router.navigate(['/login']);
   }
 }

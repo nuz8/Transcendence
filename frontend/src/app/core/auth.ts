@@ -15,10 +15,22 @@ export class Auth {
   });
   private readonly authService = inject(AuthService);
   private refreshInFlight: Observable<RefreshResponseDto> | null = null;
+  private readonly channel = typeof BroadcastChannel !== 'undefined'
+    ? new BroadcastChannel('auth-changed')
+    : null;
+
+  constructor() {
+    if (this.channel) {
+      this.channel.onmessage = () => window.location.assign('/');
+    }
+  }
 
   login(loginDto: LoginDto): Observable<LoginResponseDto> {
     return this.authService.authControllerLogin({ loginDto })
-      .pipe(tap((res) => this._accessToken.set(res.access_token)));
+      .pipe(tap((res) => {
+        this._accessToken.set(res.access_token);
+        this.channel?.postMessage('login');
+      }));
   }
 
   register(registerDto: RegisterDto): Observable<PublicUserResponseDto> {
@@ -54,7 +66,10 @@ export class Auth {
 
   logout(): Observable<LogoutResponseDto> {
     return this.authService.authControllerLogout()
-      .pipe(finalize(() => this._accessToken.set(null)));
+      .pipe(finalize(() => {
+        this._accessToken.set(null);
+        this.channel?.postMessage('logout');
+      }));
   }
 
   isLoggedIn(): boolean {
