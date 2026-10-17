@@ -1,1 +1,56 @@
-Rock Paper Scissors gameplay
+<mat-card appearance="outlined">
+  <mat-card-content>
+    <p class="status-line">
+      {{ ownScore() }} - {{ opScore() }}
+      @if (roundTimeLeft() !== null) {
+        &middot; {{ roundTimeLeft() }}s left
+      }
+    </p>
+
+    @if (lastRound(); as last) {
+      <p class="status-line">
+        You played {{ last.ownMove }}@if (last.ownPowerUp) { ({{ last.ownPowerUp }})}, opponent played {{ last.opMove }}@if (last.opPowerUp) { ({{ last.opPowerUp }})}
+        @if (shielded() && last.outcome !== 'draw') {
+          &mdash; shielded: no points scored.
+        } @else {
+          @switch (last.outcome) {
+            @case ('win') { &mdash; you won this round! }
+            @case ('lose') { &mdash; you lost this round. }
+            @case ('draw') { &mdash; round drawn. }
+          }
+        }
+      </p>
+    }
+
+    @if (matchOver()) {
+      <p class="status-line">
+        @switch (matchOutcome()) {
+          @case ('win') { You won the match! }
+          @case ('lose') { You lost the match. }
+          @case ('draw') { The match ended in a draw. }
+          @case ('forfeit') { You lost the match by forfeit. }
+        }
+      </p>
+    } @else {
+      <div class="moves">
+        @for (move of moves; track move) {
+          <button matButton="filled" [disabled]="moved()" (click)="play(move)">{{ move }}</button>
+        }
+      </div>
+
+      @if (powerUps()) {
+        <div class="power-ups">
+          @for (powerUp of powerUpsLeft(); track powerUp) {
+            <button matButton [disabled]="moved() || pendingPowerUp() !== null" (click)="usePowerUp(powerUp)">
+              {{ powerUp }}
+            </button>
+          }
+        </div>
+      }
+
+      @if (moved()) {
+        <p class="status-line">Waiting for opponent&hellip;</p>
+      }
+    }
+  </mat-card-content>
+</mat-card>

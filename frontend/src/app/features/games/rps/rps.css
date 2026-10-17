@@ -1,0 +1,13 @@
+.status-line {
+  font: var(--mat-sys-body-large);
+  text-align: center;
+}
+
+.moves,
+.power-ups {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  text-transform: capitalize;
+}
