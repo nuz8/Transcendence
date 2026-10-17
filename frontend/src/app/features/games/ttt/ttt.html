@@ -1,7 +1,7 @@
 <mat-card appearance="outlined">
   <mat-card-content>
     <p class="status-line">
-      You are {{ symbol() }} &middot; {{ ownScore() }} - {{ opScore() }}
+      You are {{ markLabel(symbol()) }} &middot; {{ ownScore() }} - {{ opScore() }}
       @if (roundTimeLeft() !== null) {
         &middot; {{ roundTimeLeft() }}s left
       }
@@ -14,7 +14,7 @@
           class="cell"
           [disabled]="!yourTurn() || reviewing() || matchOver() || cell !== null"
           (click)="move($index)">
-          {{ cell }}
+          {{ markLabel(cell) }}
         </button>
       }
     </div>

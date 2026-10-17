@@ -1,7 +1,9 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { GameSettingsResponseDto } from '../../../core/modules/openapi';
+import { GameSettingsService } from '../../../core/services/game-settings.service';
 import { GameSocket, type GatewayMessage } from '../game-socket';
 
 const MOVES = ['rock', 'paper', 'scissors'] as const;
@@ -19,14 +21,18 @@ type LastRound = {
   opPowerUp: PowerUp | null;
 };
 
+// Moves shown when the 'extra' theme is active.
+const MOVE_EMOJIS: Record<Move, string> = { rock: '🪨', paper: '📄', scissors: '✂️' };
+
 @Component({
   imports: [MatButtonModule, MatCardModule],
   selector: 'app-rps',
   styleUrl: './rps.css',
   templateUrl: './rps.html',
 })
-export class Rps {
+export class Rps implements OnInit {
   private readonly gameSocket = inject(GameSocket);
+  private readonly gameSettingsService = inject(GameSettingsService);
 
   readonly gameId = input.required<string>();
 
@@ -41,6 +47,7 @@ export class Rps {
   protected readonly lastRound = signal<LastRound | null>(null);
   protected readonly matchOver = signal(false);
   protected readonly matchOutcome = signal<MatchOutcome | null>(null);
+  private readonly theme = signal<GameSettingsResponseDto.ThemeEnum>(GameSettingsResponseDto.ThemeEnum.Default);
 
   protected readonly roundTimeLeft = this.gameSocket.roundTimeLeft;
 
@@ -52,6 +59,10 @@ export class Rps {
 
   constructor() {
     this.gameSocket.messages$.pipe(takeUntilDestroyed()).subscribe((message) => this.onMessage(message));
+  }
+
+  ngOnInit(): void {
+    this.gameSettingsService.getSettings(this.gameId()).subscribe((settings) => this.theme.set(settings.theme));
   }
 
   protected play(move: Move): void {
@@ -66,6 +77,11 @@ export class Rps {
       return;
     this.pendingPowerUp.set(powerUp);
     this.gameSocket.send('power-up', powerUp);
+  }
+
+  // The queue ignores the theme, so moves are relabelled purely for display.
+  protected moveLabel(move: Move): string {
+    return this.theme() === 'extra' ? MOVE_EMOJIS[move] : move;
   }
 
   private onMessage(message: GatewayMessage): void {

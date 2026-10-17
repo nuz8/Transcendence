@@ -33,6 +33,17 @@
       </p>
     </section>
 
+    <section>
+      <h3 id="theme-heading">Theme</h3>
+      <mat-button-toggle-group
+        aria-labelledby="theme-heading"
+        [value]="current.theme"
+        (change)="save(current, { theme: $event.value })">
+        <mat-button-toggle [value]="themes.Default">Default</mat-button-toggle>
+        <mat-button-toggle [value]="themes.Extra">Extra</mat-button-toggle>
+      </mat-button-toggle-group>
+    </section>
+
     @if (supportsPowerUps()) {
       <section>
         <h3 id="power-ups-heading">Power-ups</h3>

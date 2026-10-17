@@ -25,6 +25,7 @@ export class GameSettings implements OnInit {
   protected readonly settings = signal<GameSettingsResponseDto | null>(null);
   protected readonly targets = Object.values(GameSettingsDto.TargetEnum);
   protected readonly modes = GameSettingsDto.ModeEnum;
+  protected readonly themes = GameSettingsDto.ThemeEnum;
   protected readonly expanded = signal(false);
   // Settings can't be changed once a match is being searched for.
   protected readonly locked = computed(() => this.gameSocket.status() !== 'idle');

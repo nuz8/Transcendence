@@ -34,7 +34,7 @@
     } @else {
       <div class="moves">
         @for (move of moves; track move) {
-          <button matButton="filled" [disabled]="moved()" (click)="play(move)">{{ move }}</button>
+          <button matButton="filled" [disabled]="moved()" (click)="play(move)">{{ moveLabel(move) }}</button>
         }
       </div>
 
